@@ -9,18 +9,18 @@ void DecideFoobar(int num)
 {
     if (num % 3 == 0)
     {
-        Console.WriteLine("foo");
+        Console.Write(" foo");
     }else if (num % 5 == 0)
     {
         
-        Console.WriteLine("Bar");
+        Console.Write(" bar");
     }else if((num % 3 == 0)&&(num % 5 == 0))
     {
-        Console.WriteLine("foobar");
+        Console.Write(" foobar");
     }
     else
     {
-        Console.WriteLine(num);
+        Console.Write($" {num}");
     }
 }
 
