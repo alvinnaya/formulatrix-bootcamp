@@ -1,4 +1,4 @@
-﻿// See https://aka.ms/new-console-template for more information
+// See https://aka.ms/new-console-template for more information
 
 
 
@@ -25,7 +25,7 @@ void DecideFoobar(int num)
 }
 
 
-for (int i = 0; i <= n; i++)
+for (int i = 0; i < n; i++)
 {
     DecideFoobar(i);
 }
