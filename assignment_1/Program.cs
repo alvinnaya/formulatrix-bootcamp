@@ -9,7 +9,7 @@ void DecideFoobar(int num)
 {
     if (num % 3 == 0)
     {
-        Console.Write(" foo");
+        Console.Write("foo");
     }else if (num % 5 == 0)
     {
         

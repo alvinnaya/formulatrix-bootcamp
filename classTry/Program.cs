@@ -1,65 +1,61 @@
+using classLainnya;
+using tree;
+
+PrintBiji jumlahBiji = new PrintBiji(10);
+jumlahBiji.gandaBiji();
+
+jumlahBiji.Write();
+
+jumlahBiji.gandaBiji();
+jumlahBiji.gandaBiji();
+
+jumlahBiji.Write();
+
+JumlahBiji biji = jumlahBiji as JumlahBiji;
 
 
-BinaryTree tree = new BinaryTree();
+var Email = new classLainnya.EmailNotification();
+var orderService = new classLainnya.OrderService(Email);
+orderService.PlaceOrder();
+
+var tree = new tree.BinarySearchTree<int>();
+tree.Insert(3);
+tree.Insert(7);
+tree.Insert(9);
 
 
-tree.Insert(11);
-tree.Insert(5);
-tree.Insert(15);
-tree.Insert(12);
+Console.WriteLine($"node value {tree.Root?.Right?.Value}");
 
-Console.WriteLine(tree.Root.Data);
+int maxDepth = tree.maxDepth();
+Console.WriteLine($"max Depth {maxDepth}");
 
 
 
-class Node
+
+
+
+public class JumlahBiji
 {
-    public int Data { get; set; }
-    public Node? Left { get; set; }
-    public Node? Right { get; set; }
+    public int biji;
 
-    public Node(int data)
+    public JumlahBiji(int b)
     {
-        Data = data;
+        biji = b;
     }
+
+    public int gandaBiji() => this.biji = this.biji*2;
 }
 
 
-class BinaryTree
+public class PrintBiji : JumlahBiji
 {
-    public Node? Root { get; private set; }
-
-    public void Insert(int data)
+   public PrintBiji(int b) : base(b)
     {
-        Root = InsertRec(Root, data);
-    }
-
-    private Node InsertRec(Node? node, int data)
-
-    {
-        if (node is null)
-            return new Node(data);
-
-        if (data < node.Data)
-            node.Left = InsertRec(node.Left, data);
-        else if (data > node.Data)
-            node.Right = InsertRec(node.Right, data);
-
-        return node;
-    }
-
-    public int maxLength(Node? node)
-    {
-        if (node.Left)
-        {
-            maxLength(node.Left);
-            
-        }
         
-        maxLength(node.Right)
+    }
 
-        return 1;
+    public void Write()
+    {
+        Console.WriteLine($"bijinya ada : {biji}");
     }
 }
-
-
