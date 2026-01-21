@@ -1,6 +1,7 @@
 
 namespace Event;
 
+
 public delegate void PriceChangedHandler(decimal oldPrice, decimal newPrice);
 
 
@@ -86,3 +87,100 @@ public class Event
 
 
 }
+
+
+
+
+// 1. Buat class EventArgs kalo butuh data tambahan
+public class MessageEventArgs : EventArgs
+{
+    public string Message { get; }
+    public MessageEventArgs(string message)
+    {
+        Message = message;
+    }
+}
+
+public class SecondMessafeEvent : EventArgs
+{
+    public string Message{get;}
+    public int Id{get;}
+
+    public SecondMessafeEvent(string message, int id)
+    {
+        Message = message;
+        Id = id;
+    }
+}
+
+//Publisher 
+public class Publisher
+{
+    // Event menggunakan EventHandler<T>
+    public event EventHandler<MessageEventArgs> MessageReceived;
+    public event EventHandler<SecondMessafeEvent> SecondMessage;
+
+    public event EventHandler thirdMessage;
+
+
+    public void TriggerEvent(string msg)
+    {
+        // ? operator -> cek null sebelum invoke
+        MessageReceived?.Invoke(this, new MessageEventArgs(msg));
+
+    }
+
+    public void SecondTriggerEvents(string msg,int Id)
+    {
+        SecondMessage?.Invoke(this, new SecondMessafeEvent(msg,Id));
+    }
+}
+
+//Subscriber
+public class Subscriber
+{
+    public void Subscribe(Publisher pub)
+    {
+        pub.MessageReceived += HandleMessage;
+    }
+
+    private void HandleMessage(object sender, MessageEventArgs e)
+    {
+        Console.WriteLine($"Menerima pesan: {e.Message} dari {sender.GetType().Name}");
+    }
+}
+
+public class Subscriber2
+{
+    
+    public void Subscribe(Publisher pub)
+    {
+        pub.SecondMessage += HandleMessage;
+    }
+
+    private void HandleMessage(object sender, SecondMessafeEvent e)
+    {
+         Console.WriteLine($"Menerima pesan: {e.Message} and Id: {e.Id} dari {sender.GetType().Name}");
+    }
+}
+
+
+//Event Accessors (Explicit Implementation)
+
+class Engine
+{
+    public event EventHandler Overheated;
+}
+
+class Car
+{
+    private Engine engine = new Engine();
+
+    public event EventHandler Overheated
+    {
+        add    { engine.Overheated += value; }
+        remove { engine.Overheated -= value; }
+    }
+}
+
+

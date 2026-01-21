@@ -1,7 +1,7 @@
 ﻿using Delegate;
 using Event;
-
-
+using TryAndCatch;
+using OperatorSpace;
 
 // int Square(int x) => x * x;
 // int Cube(int x) => x * x * x;
@@ -12,26 +12,86 @@ using Event;
 // Delegate.Delegate.publish += haaa2;
 
 // Delegate.Delegate d = new Delegate.Delegate();
+int? x = null;
+int y = x ?? 5;
 
-Event.Stock stock = new Stock("NVDIA");
-stock.Price = 50;
+Console.WriteLine($"{y}");
+
+//practice event in main
+
+Console.WriteLine("======== Event ============");
+
+Publisher pub = new Publisher();
+Event.Subscriber sub = new Subscriber();
+Event.Subscriber2 sub2 = new Subscriber2();
+sub.Subscribe(pub);
+sub2.Subscribe(pub);
+
+pub.TriggerEvent("geerrrr");
+pub.TriggerEvent("how are you");
+pub.SecondTriggerEvents("hello nigga", 2);
+
+
+
+
 
 
 int Calc(int x) => 10 / x;
 
-try
-{
-int x = Calc(0);
+int Calc2(int x) => 10 / x;
 
-Console.WriteLine(x);
-
-}
-catch (DivideByZeroException e)
-{
-    Console.WriteLine("tidak boleh dibagi 0");
-}
+TransformObj t = Calc;
+t += Calc;
 
 
+Console.WriteLine("============Try and Catch Error===========");
+
+TryAndCatch.TryCatch.tryfunc(5,0);
+
+
+
+
+
+Console.WriteLine("===============enumerator=================");
+var list = new List<int> { 1,2,4,23,45,3,30 };
+
+var enumerator = list.GetEnumerator();
+
+ while (enumerator.MoveNext()) // Move to the next element
+    {
+        var element = enumerator.Current; // Get the current element
+        enumerator.MoveNext();
+        Console.WriteLine(element);
+    }
+
+
+
+
+Console.WriteLine("============ Operator ===========");
+
+Operator a = new Operator(10);
+Operator b = new Operator(4);
+Operator c = new Operator(12);
+
+Operator d = a + b + c ;
+int e = d - a;
+int f = d + 100;
+
+Console.WriteLine($"a + b + c = {d.value}");
+
+Console.WriteLine($" d - a = {e}");
+
+Console.WriteLine($" f = d + 100 ____ {f}");
+
+
+
+
+
+
+
+delegate int TransformObj(int x);
+
+public delegate TResult Transformer<TArg, TResult>(TArg arg);
 // Delegate.Delegate.Transformer<int,int> squ = Square;
 // squ += Cube;
 
@@ -57,3 +117,5 @@ catch (DivideByZeroException e)
 //     Console.Write(i + "  ");
 
 // delegate int Transformer(int x); // Delegate type declaration
+
+

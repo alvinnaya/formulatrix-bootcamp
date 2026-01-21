@@ -10,6 +10,8 @@ public class Delegate
 
     public static Action <string> publish;
 
+    
+
 
      public static void Transform<T>(T[] values, Transformer<T, T> t) // Uses generic delegate
     {
