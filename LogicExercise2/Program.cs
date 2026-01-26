@@ -3,7 +3,7 @@
 
 
 
-int n = 100;
+int n = 200;
 
 String DecideFoobar(int num)
 {
@@ -12,6 +12,12 @@ String DecideFoobar(int num)
     {
         finalString = finalString + "foo";
     }
+
+    if(num % 4 == 0)
+    {
+        finalString = finalString + "baz";
+    }
+
     if (num % 5 == 0)
     {
         
@@ -21,6 +27,11 @@ String DecideFoobar(int num)
     if(num % 7 == 0)
     {
         finalString = finalString + "jazz";
+    }
+
+    if(num % 9 == 0)
+    {
+        finalString = finalString + "huzz";
     }
 
     if(finalString == "")
