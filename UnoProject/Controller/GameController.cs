@@ -55,12 +55,12 @@ namespace Controller;
     {
         GameStarted?.Invoke();
         _currentPlayer = Players[0];
-        PlayTurn();
+   
     }
 
 
 
-   public void PlayTurn()
+   public void Nexturn()
     {
         if (IsGameOver) return;
 
@@ -68,9 +68,12 @@ namespace Controller;
 
         // Placeholder: player logic
         // PlayCard(_currentPlayer, someCard) or DrawCard(_currentPlayer);
+        
 
         TurnEnded?.Invoke(_currentPlayer);
         MoveToNextPlayer(1);
+        // if (!IsGameOver)
+        //     PlayTurn();
     }
 
 
@@ -81,9 +84,12 @@ namespace Controller;
 
 
 
+// cek apakah kartu yang dikeluarkan itu valid?
 
         public void PlayCard(IPlayer player, ICard card)
     {
+      
+
         _playerCards[player].Remove(card);
         _lastPlayedCard = card;
         _lastPlayer = player;
@@ -92,6 +98,10 @@ namespace Controller;
 
         ResolveCardEffect(card);
         CheckUno(player);
+            
+        
+        
+        
 
         if (_playerCards[player].Count == 0)
             EndGame(player);
@@ -117,6 +127,29 @@ namespace Controller;
     {
         // Implement special card effects here (Skip, Reverse, Draw Two, Wild, etc.)
     }
+
+
+public bool IsCardValid(ICard card)
+{
+    // Kalau belum ada kartu sebelumnya (awal game)
+    if (_lastPlayedCard == null)
+        return true;
+
+    // Wild selalu boleh
+    if (card.Type == CardType.Wild || card.Type == CardType.WildDrawFour)
+        return true;
+
+    // Warna sama
+    if (card.Color == CurrentColor)
+        return true;
+
+    // Angka / simbol sama
+    if (card.Type == _lastPlayedCard.Type &&
+        card.Type == _lastPlayedCard.Type)
+        return true;
+
+    return false;
+}
 
 
       private void MoveToNextPlayer(int skip)
