@@ -9,23 +9,32 @@ using Controller;
 
         
      
-
+ // ===== DISCARD =====
         var deck = new Deck.Deck();
         InitDeck(deck);
         Shuffle(deck.Cards);
 
-        // ===== DISCARD =====
+       
         var discardPile = new DiscardPile();
 
-        // ===== PLAYERS =====
-        var players = CreatePlayers(3);
-            
-        
-        // ===== DECK =====
+        var players = new List<IPlayer>();
+        CreatePlayers(3,players);
+
+        var game = new GameController(players, deck, discardPile);
+
+
+
+        // ===== CREATE PLAYERS =====
         
 
+
+   
+            
+        
+   
+
         // ===== CONTROLLER =====
-        var game = new GameController(players, deck, discardPile);
+       
 
         // ===== EVENTS =====
         game.GameStarted += () => Console.WriteLine("Game Started");
@@ -34,15 +43,13 @@ using Controller;
         // game.CardDrawn += (p, c) => Console.WriteLine($"{p} drew {c}");
         // game.GameEnded += p => Console.WriteLine($"\nWINNER: {p}");
 
-        // ===== DEAL 7 CARDS =====
+        // ===== START GAME =====
         foreach (var p in players)
             for (int i = 0; i < 7; i++)
             {
                 game.DrawCard(p);
             }
-               
-
-        // ===== FIRST CARD =====
+      
         game.StartGame();
         
         Console.WriteLine($"First card: {game.GetLastPlayedCard()}");
@@ -146,12 +153,12 @@ using Controller;
         }
     }
 
-    List<IPlayer> CreatePlayers(int jumlah)
+   void CreatePlayers(int jumlah, List<IPlayer> players)
     {
-        var players = new List<IPlayer>();
+      
         for (int i = 1; i <= jumlah; i++)
         {
             players.Add(new Player($"Player {i}"));
         }
-        return players;
+       
     }

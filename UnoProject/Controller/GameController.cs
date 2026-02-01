@@ -173,6 +173,19 @@ namespace Controller;
         _currentPlayer = Players[index];
     }
 
+    private  IPlayer GetNextPlayer(int skip)
+    {
+         int index = Players.IndexOf(_currentPlayer);
+        int count = Players.Count;
+
+        if (Direction == Direction.Clockwise)
+            index = (index + skip) % count;
+        else
+            index = (index - skip + count) % count;
+
+        return Players[index];
+    }
+
 
     private void ReverseDirection()
 {
@@ -210,22 +223,22 @@ private void ResolveCardEffect(ICard card)
 
         case CardType.DrawTwo:
             // pindah ke player target
-            MoveToNextPlayer(1);
 
-            // target draw 2
-            DrawCard(_currentPlayer);
-            DrawCard(_currentPlayer);
+            DrawCard(GetNextPlayer(1));
+            DrawCard(GetNextPlayer(1));
             break;
 
         case CardType.WildDrawFour:
             // pindah ke player target
-            MoveToNextPlayer(1);
+           
 
+            // target draw 2
+            DrawCard(GetNextPlayer(1));
+            DrawCard(GetNextPlayer(1));
+            DrawCard(GetNextPlayer(1));
+            DrawCard(GetNextPlayer(1));
             // target draw 4
-            DrawCard(_currentPlayer);
-            DrawCard(_currentPlayer);
-            DrawCard(_currentPlayer);
-            DrawCard(_currentPlayer);
+       
             break;
 
         case CardType.Wild:
