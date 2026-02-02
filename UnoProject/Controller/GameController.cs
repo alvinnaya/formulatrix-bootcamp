@@ -11,6 +11,7 @@ namespace Controller;
     {
         // ===== STATE =====
         public List<IPlayer> Players { get; private set; }
+        
         public IDeck Deck { get; private set; }
         public IDiscardPile DiscardPile { get; private set; }
 
@@ -61,6 +62,15 @@ namespace Controller;
         CurrentColor = first.Color.Value ;
    
     }
+
+     public void AddPlayer(IPlayer player)
+{
+    Players.Add(player);
+
+    // Make sure the player's card list exists
+    if (!_playerCards.ContainsKey(player))
+        _playerCards[player] = new List<ICard>();
+}
 
 
 
@@ -118,6 +128,8 @@ namespace Controller;
         
         
     }
+
+
 
 
 
