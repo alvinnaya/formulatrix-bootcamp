@@ -55,7 +55,22 @@ namespace Controller;
     {
         GameStarted?.Invoke();
         _currentPlayer = Players[0];
+        var first = Deck.Cards.Pop();
+        DiscardPile.Cards.Push(first);
+        _lastPlayedCard = first;
+        CurrentColor = first.Color.Value ;
    
+    }
+
+
+
+    public void CallUno(IPlayer player)
+    {
+        if (_playerCards[player].Count == 1)
+        {
+            player.HasCalledUno = true;
+            UnoCalled?.Invoke(player);
+        }
     }
 
 
@@ -65,6 +80,7 @@ namespace Controller;
         if (IsGameOver) return;
 
         TurnStarted?.Invoke(_currentPlayer);
+        CheckUno(_currentPlayer);
 
         // Placeholder: player logic
         // PlayCard(_currentPlayer, someCard) or DrawCard(_currentPlayer);
@@ -77,43 +93,41 @@ namespace Controller;
     }
 
 
-
-
-    
-
-
-
-
-// cek apakah kartu yang dikeluarkan itu valid?
-
-        public void PlayCard(IPlayer player, ICard card)
+    public void PlayCard(IPlayer player, ICard card)
     {
       
+        if (IsCardValid(card))
+        {
 
-        _playerCards[player].Remove(card);
-        _lastPlayedCard = card;
-        _lastPlayer = player;
-        DiscardPile.Cards.Push(card);
-        CardPlayed?.Invoke(player, card);
+            _playerCards[player].Remove(card);
+            _lastPlayedCard = card;
+            _lastPlayer = player;
+            DiscardPile.Cards.Push(card);
+            CardPlayed?.Invoke(player, card);
 
-        ResolveCardEffect(card);
-        CheckUno(player);
-            
-        
-        
-        
+            player.HasCalledUno = false;
 
-        if (_playerCards[player].Count == 0)
+            if (_playerCards[player].Count == 0)
             EndGame(player);
+
+            ResolveCardEffect(card);
+          
+            
+        }
+
+        
+        
     }
 
 
 
-     public void DrawCard(IPlayer player)
+    public void DrawCard(IPlayer player)
     {
         var card = DrawFromDeck();
         _playerCards[player].Add(card);
         CardDrawn?.Invoke(player, card);
+        player.HasCalledUno = false;
+      
     }
 
     public ICard GetLastPlayedCard() => _lastPlayedCard;
@@ -123,36 +137,30 @@ namespace Controller;
     public IReadOnlyList<ICard> GetPlayerCards(IPlayer player) => _playerCards[player].AsReadOnly();
 
 
-     private void ResolveCardEffect(ICard card)
+    public bool IsCardValid(ICard card)
     {
-        // Implement special card effects here (Skip, Reverse, Draw Two, Wild, etc.)
+        // Kalau belum ada kartu sebelumnya (awal game)
+        if (_lastPlayedCard == null)
+            return true;
+
+        // Wild selalu boleh
+        if (card.Type == CardType.Wild || card.Type == CardType.WildDrawFour)
+            return true;
+
+        // Warna sama
+        if (card.Color == CurrentColor)
+            return true;
+
+        // Angka / simbol sama
+        if (card.Type == _lastPlayedCard.Type &&
+            card.Type == _lastPlayedCard.Type)
+            return true;
+
+        return false;
     }
 
 
-public bool IsCardValid(ICard card)
-{
-    // Kalau belum ada kartu sebelumnya (awal game)
-    if (_lastPlayedCard == null)
-        return true;
-
-    // Wild selalu boleh
-    if (card.Type == CardType.Wild || card.Type == CardType.WildDrawFour)
-        return true;
-
-    // Warna sama
-    if (card.Color == CurrentColor)
-        return true;
-
-    // Angka / simbol sama
-    if (card.Type == _lastPlayedCard.Type &&
-        card.Type == _lastPlayedCard.Type)
-        return true;
-
-    return false;
-}
-
-
-      private void MoveToNextPlayer(int skip)
+    private void MoveToNextPlayer(int skip)
     {
         int index = Players.IndexOf(_currentPlayer);
         int count = Players.Count;
@@ -165,16 +173,80 @@ public bool IsCardValid(ICard card)
         _currentPlayer = Players[index];
     }
 
-    private void ReverseDirection()
+    private  IPlayer GetNextPlayer(int skip)
     {
-        Direction = Direction == Direction.Clockwise ? Direction.CounterClockwise : Direction.Clockwise;
-        DirectionChanged?.Invoke(Direction);
+         int index = Players.IndexOf(_currentPlayer);
+        int count = Players.Count;
+
+        if (Direction == Direction.Clockwise)
+            index = (index + skip) % count;
+        else
+            index = (index - skip + count) % count;
+
+        return Players[index];
     }
 
-    
+
+    private void ReverseDirection()
+{
+    Direction = Direction == Direction.Clockwise
+        ? Direction.CounterClockwise
+        : Direction.Clockwise;
+
+    DirectionChanged?.Invoke(Direction);
+}
 
 
+private void ResolveCardEffect(ICard card)
+{
+    // Update warna (non-wild pasti punya color)
+    if (card.Color.HasValue)
+    {
+        CurrentColor = card.Color.Value;
+        CurrentColorChanged?.Invoke(CurrentColor);
+    }
 
+    switch (card.Type)
+    {
+        case CardType.Skip:
+            // skip 1 player
+            MoveToNextPlayer(1);
+            break;
+
+        case CardType.Reverse:
+            ReverseDirection();
+
+            // aturan UNO: 2 player = skip
+            if (Players.Count == 2)
+                MoveToNextPlayer(1);
+            break;
+
+        case CardType.DrawTwo:
+            // pindah ke player target
+
+            DrawCard(GetNextPlayer(1));
+            DrawCard(GetNextPlayer(1));
+            break;
+
+        case CardType.WildDrawFour:
+            // pindah ke player target
+           
+
+            // target draw 2
+            DrawCard(GetNextPlayer(1));
+            DrawCard(GetNextPlayer(1));
+            DrawCard(GetNextPlayer(1));
+            DrawCard(GetNextPlayer(1));
+            // target draw 4
+       
+            break;
+
+        case CardType.Wild:
+        default:
+            // number card & wild tanpa efek tambahan
+            break;
+    }
+}
 
 
     private ICard DrawFromDeck()
@@ -182,6 +254,7 @@ public bool IsCardValid(ICard card)
 
         if(Deck.Cards.Count == 0)
         {
+            RefillDeckFromDiscard();
             
         }
         
@@ -200,20 +273,20 @@ public bool IsCardValid(ICard card)
     }
 
 
-     private void CheckUno(IPlayer player)
+    private void CheckUno(IPlayer player)
+{
+    // Jika player sebelumnya punya 1 kartu dan TIDAK bilang UNO
+    if (_lastPlayer != null &&
+        _playerCards[_lastPlayer].Count == 1 &&
+        !_lastPlayer.HasCalledUno)
     {
-        if (_playerCards[player].Count == 1)
-        {
-            UnoCalled?.Invoke(player);
-        }
-        else if (_playerCards[player].Count == 0)
-        {
-            // player won
-        }
+        ApplyUnoPenalty(_lastPlayer);
     }
+}
 
 
-      private void ApplyUnoPenalty(IPlayer player)
+
+    private void ApplyUnoPenalty(IPlayer player)
     {
         // Draw 2 cards as penalty
         DrawCard(player);
