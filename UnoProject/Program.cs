@@ -40,13 +40,14 @@ using System.Text.Json;
             socket.OnOpen = () =>
             {
                 Console.WriteLine("Client connected!");
+                 allSockets.Add(socket);
                 
             };
 
             socket.OnClose = () =>
             {
                 Console.WriteLine("Client disconnected");
-               
+                allSockets.Remove(socket);
             };
 
             socket.OnMessage = message =>
@@ -65,13 +66,16 @@ using System.Text.Json;
     {
         var parts = message.Split(" ");
 
-        switch (parts[0].ToLower())
+        switch (parts[1].ToLower())
         {
             case "init":
-                // contoh: "init 3" -> buat 3 pemain
-                Broadcast("Server got init: ");
+            {
+                 Broadcast("Server got init: ");
             
                 break;
+            }
+                // contoh: "init 3" -> buat 3 pemain
+               
 
             case "start":{
 
@@ -83,16 +87,16 @@ using System.Text.Json;
             
                 game.StartGame();
 
-                var player = game.GetCurrentPlayer();
-                var hand = game.GetPlayerCards(player);
+                var currentPlayer = game.GetCurrentPlayer();
+                //var hand = game.GetPlayerCards(player);
                 var lastCard = game.GetLastPlayedCard();
 
                 // Buat object JSON
                 var state = new
                 {
                     lastCard = lastCard.ToString(),
-                    currentPlayer = player.Name,
-                    hand = hand.Select((c, idx) => new { index = idx, card = c.ToString() }).ToList()
+                    currentPlayer = currentPlayer.Name,
+                    // hand = hand.Select((c, idx) => new { index = idx, card = c.ToString() }).ToList()
                 };
 
                 // Serialize object ke JSON
@@ -106,29 +110,18 @@ using System.Text.Json;
             }
 
             case "getcard":
-
-                //String playerIndex = parts[1];
-                Broadcast($"player Index: {parts[1]} " );
-
-
-                break;
-
-            case "draw":
             {
-                         // draw <playerIndex>
-                    var player = game.GetCurrentPlayer();
-
-                    if(player.Name == parts[1])
-                    {
-                        DrawCard(player);
-                        var hand = game.GetPlayerCards(player);
-                        var lastCard = game.GetLastPlayedCard();
+                if(parts[0] == game.GetCurrentPlayer().Name)
+                {
+                var currentPlayer = game.GetCurrentPlayer();
+                var hand = game.GetPlayerCards(currentPlayer);
+                var lastCard = game.GetLastPlayedCard();
 
                 // Buat object JSON
                 var state = new
                 {
                     lastCard = lastCard.ToString(),
-                    currentPlayer = player.Name,
+                    currentPlayer = currentPlayer.Name,
                     hand = hand.Select((c, idx) => new { index = idx, card = c.ToString() }).ToList()
                 };
 
@@ -136,6 +129,46 @@ using System.Text.Json;
                 string json = JsonSerializer.Serialize(state);
 
                 // Kirim ke client lewat socket
+                socket.Send(json);
+            }
+
+                break;
+            }
+
+             
+
+            case "draw":
+            {
+                         // draw <playerIndex>
+                    var currentPlayer = game.GetCurrentPlayer();
+
+                    if(currentPlayer.Name == parts[0])
+                    {
+                        game.DrawCard(currentPlayer);
+                        game.Nexturn();
+                        var hand = game.GetPlayerCards(currentPlayer);
+                        var lastCard = game.GetLastPlayedCard();
+
+                // Buat object JSON
+                var state = new
+                {
+                    lastCard = lastCard.ToString(),
+                    currentPlayer = currentPlayer.Name,
+                    hand = hand.Select((c, idx) => new { index = idx, card = c.ToString() }).ToList()
+                };
+
+                var BroadcastState = new
+                {
+                    lastCard = lastCard.ToString(),
+                    currentPlayer = game.GetCurrentPlayer().Name,
+                    
+                };
+
+ 
+                string json = JsonSerializer.Serialize(state);
+                socket.Send(JsonSerializer.Serialize(BroadcastState));
+
+             
                 Broadcast(json);
                     }
 
@@ -150,13 +183,55 @@ using System.Text.Json;
                 break;
 
             case "play":
-                
-                    // play <playerIndex> <cardIndex>
-                  socket.Send($"play: " );
+            {
+
+                // play <playerIndex> <cardIndex>
+                    var currentPlayer = game.GetCurrentPlayer();
+                    var hand = game.GetPlayerCards(currentPlayer);
+                    var idx = int.Parse(parts[2]);
+                    
+                    var lastCard = game.GetLastPlayedCard();
+
+                    if(currentPlayer.Name == parts[0])
+                    {
+                         var card = hand[idx];
+                    if (game.IsCardValid(card))
+                    {
+                        game.PlayCard(currentPlayer, card);
+
+                        
+                        game.Nexturn();
+                         var state = new
+                        {
+                            lastCard = game.GetLastPlayedCard().ToString(),
+                            currentPlayer = currentPlayer.Name,
+                            hand = game.GetPlayerCards(currentPlayer).Select((c, idx) => new { index = idx, card = c.ToString() }).ToList()
+                        };
+
+                        var BroadcastState = new
+                        {
+                            lastCard = lastCard.ToString(),
+                            currentPlayer = currentPlayer.Name,
+                            
+                        };
+
+
+                socket.Send(JsonSerializer.Serialize(state));
+                Broadcast(JsonSerializer.Serialize(BroadcastState));
+                            }
+                    else
+                    {
+                        socket.Send($"invalid card " );
+                    }
+                    }
+                  
                     
                 
                 break;
 
+                
+            }
+                    
             case "uno":
                 
                     // uno <playerIndex>
@@ -185,7 +260,7 @@ void Broadcast(string message)
     
 
 
-        game.AddPlayer(new Player($"Player4"));
+        // game.AddPlayer(new Player($"Player4"));
 
 
         //add player
@@ -207,20 +282,20 @@ void Broadcast(string message)
        
 
         // ===== EVENTS =====
-        game.GameStarted += () => Console.WriteLine("Game Started");
+        //game.GameStarted += () => Console.WriteLine("Game Started");
         // game.TurnStarted += p => Console.WriteLine($"\nTurn: {p}");
         // game.CardPlayed += (p, c) => Console.WriteLine($"{p} played {c}");
         // game.CardDrawn += (p, c) => Console.WriteLine($"{p} drew {c}");
         // game.GameEnded += p => Console.WriteLine($"\nWINNER: {p}");
-        foreach (var p in players)
-            for (int i = 0; i < 7; i++)
-            {
-                game.DrawCard(p);
-            }
+        // foreach (var p in players)
+        //     for (int i = 0; i < 7; i++)
+        //     {
+        //         game.DrawCard(p);
+        //     }
       
-        game.StartGame();
+        // game.StartGame();
         
-        Console.WriteLine($"First card: {game.GetLastPlayedCard()}");
+        // Console.WriteLine($"First card: {game.GetLastPlayedCard()}");
 
         
 
