@@ -1,53 +1,15 @@
 ﻿// See https://aka.ms/new-console-template for more information
 
+using NumPrinter;
 
 
+NumPrinterClass printer = new NumPrinterClass();
 
-int n = 200;
-
-String DecideFoobar(int num)
-{
-    String finalString = "";
-    if (num % 3 == 0)
-    {
-        finalString = finalString + "foo";
-    }
-
-    if(num % 4 == 0)
-    {
-        finalString = finalString + "baz";
-    }
-
-    if (num % 5 == 0)
-    {
-        
-        finalString = finalString + "bar";
-    }
-
-    if(num % 7 == 0)
-    {
-        finalString = finalString + "jazz";
-    }
-
-    if(num % 9 == 0)
-    {
-        finalString = finalString + "huzz";
-    }
-
-    if(finalString == "")
-    {
-        finalString = num.ToString();
-    }
-
-    return finalString;
-}
+printer.AddRule(3, "foo");
+printer.AddRule(4, "baz");
+printer.AddRule(5, "bar");
+printer.AddRule(7, "jazz");
+printer.AddRule(9, "huzz");
 
 
-for (int i = 0; i < n; i++)
-{
-    string print = DecideFoobar(i);
-    Console.Write(print);
-    Console.Write(" ");
-}
-    
-
+printer.Printing(300);
