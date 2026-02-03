@@ -100,12 +100,16 @@ using System.Text.Json;
                     break;
                 }
 
-                var newPlayerList =  new List<IPlayer>();
+                
 
                 if (int.TryParse(parts[2], out int numOfPlayers))
                 {
+                    var newPlayerList =  new List<IPlayer>();
                     CreatePlayers(numOfPlayers, newPlayerList);
-                    game.ChangePlayers(newPlayerList);
+                    Console.WriteLine($"Created {numOfPlayers} players.");
+                    Console.WriteLine(newPlayerList.Count);
+                    newPlayerList.ForEach(p => Console.WriteLine(p.Name));
+                    
                     SendJson(socket, "info", new { message = $"there was {numOfPlayers} Players" });
                 }
                 break;
@@ -137,17 +141,14 @@ using System.Text.Json;
                 //var hand = game.GetPlayerCards(player);
                 var lastCard = game.GetLastPlayedCard();
 
-                    var broadcastData = new
-                    {
-                        gameState = new
-                        {
-                            lastCard = lastCard.ToString(),
-                            currentPlayer = currentPlayer.Name
-                        },
-                        allPlayers = GetPlayersCardCount(game) // langsung array/object
-                    };
+                   var gameState = new
+                {
+                    lastCard = lastCard.ToString(),
+                    currentPlayer = game.GetCurrentPlayer().Name,
+                    allPlayers = GetPlayersCardCount(game)
+                };
 
-                    BroadcastJson("gameState", broadcastData);
+                    BroadcastJson("gameState", gameState);
 
 
                
@@ -165,13 +166,14 @@ using System.Text.Json;
                 }
                 var lastCard = game.GetLastPlayedCard();
 
-                 var currentState = new
+                 var gameState = new
                 {
                     lastCard = lastCard.ToString(),
                     currentPlayer = game.GetCurrentPlayer().Name,
+                    allPlayers = GetPlayersCardCount(game)
                 };
 
-                SendJson(socket, "gameState", currentState);
+                SendJson(socket, "gameState", gameState);
                 break;
                 
             }
@@ -230,17 +232,15 @@ using System.Text.Json;
 
                 
 
-                 var broadcastData = new
-                    {
-                        gameState = new
+                    var gameState = new
                         {
-                            lastCard = lastCard.ToString(),
-                            currentPlayer = nextPlayer.Name
-                        },
-                        allPlayers = GetPlayersCardCount(game) // langsung array/object
-                    };
+                            lastCard = game.GetLastPlayedCard().ToString(),
+                            currentPlayer = nextPlayer.Name,
+                            allPlayers = GetPlayersCardCount(game),
+                            action = $"drawcard"
+                        };
 
-                     var state = new
+                     var playerState = new
                     {
                         lastCard = lastCard.ToString(),
                         player = currentPlayer.Name,
@@ -248,8 +248,8 @@ using System.Text.Json;
                     };
 
                     // Kirim ke client
-                    BroadcastJson("gameState", broadcastData);
-                    SendJson(socket, "playerState", state);
+                    BroadcastJson("gameState", gameState);
+                    SendJson(socket, "playerState", playerState);
 
              
                 
@@ -289,22 +289,24 @@ using System.Text.Json;
                         
                         game.Nexturn();
                         var nextPlayer = game.GetCurrentPlayer();
-                         var state = new
+                         var playerState = new
                         {
                             lastCard = game.GetLastPlayedCard().ToString(),
                             currentPlayer = currentPlayer.Name,
                             hand = game.GetPlayerCards(currentPlayer).Select((c, idx) => new { index = idx, card = c.ToString() }).ToList()
                         };
 
-                        var BroadcastState = new
+                        var gameState = new
                         {
                             lastCard = game.GetLastPlayedCard().ToString(),
                             currentPlayer = nextPlayer.Name,
+                            allPlayers = GetPlayersCardCount(game),
+                            action = $"playcard {card.ToString()}"
                         };
 
 
-                SendJson(socket, "playerState", state);
-                BroadcastJson("gameState", BroadcastState);
+                SendJson(socket, "playerState", playerState);
+                BroadcastJson("gameState", gameState);
                             }
                     else
                     {
@@ -320,18 +322,40 @@ using System.Text.Json;
             }
                     
             case "uno":
+            {
 
-              if(!game.IsGameStarted)
+                if(!game.IsGameStarted)
                 {
                     SendJson(socket, "error", new { message = "Game not started" });
                     break;
                 }
+
+                    var currentPlayer = game.GetCurrentPlayer();
+
+                    if(currentPlayer.Name == parts[0])
+            {
+                        game.CallUno(currentPlayer);
+                        BroadcastJson("info", new { message = $"{currentPlayer.Name} called UNO!" } );
+                         var gameState = new
+                        {
+                            
+                            currentPlayer = currentPlayer.Name,
+                            UnoCalled = true,
+                            action = $"called uno"
+                            
+                        };
+                        BroadcastJson("UnoState", gameState);
+            }
                     
                     // uno <playerIndex>
-                    SendJson(socket, "info", new { message = "uno" } );
+                   
                    
                 
                 break;
+                
+            }
+
+              
 
             default:
                 SendJson(socket, "error", new { message = "Unknown command" });

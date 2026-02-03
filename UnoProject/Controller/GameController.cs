@@ -56,6 +56,11 @@ namespace Controller;
         public void ChangePlayers(List<IPlayer> players)
     {
         Players = players;
+         _playerCards = new Dictionary<IPlayer, List<ICard>>();
+        foreach (var p in Players)
+            _playerCards[p] = new List<ICard>();
+
+        _currentPlayer = players[0];
     }
 
 
