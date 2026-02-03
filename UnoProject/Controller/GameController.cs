@@ -35,6 +35,7 @@ namespace Controller;
         public event Action<IPlayer> UnoCalled;
         public event Action<IPlayer> UnoPenaltyApplied;
         public event Action<IPlayer> GameEnded;
+        public bool IsGameStarted { get; private set; }
 
         // ===== CONSTRUCTOR =====
         public GameController(List<IPlayer> players, IDeck deck, IDiscardPile discardPile)
@@ -49,7 +50,30 @@ namespace Controller;
 
             _currentPlayer = players[0];
             Direction = Direction.Clockwise;
+            IsGameStarted = false;
         }
+
+        public void ChangePlayers(List<IPlayer> players)
+    {
+        Players = players;
+    }
+
+
+    public Dictionary<string, int> GetPlayerCardCounts()
+{
+    var result = new Dictionary<string, int>();
+
+    foreach (var kvp in _playerCards)
+    {
+        var player = kvp.Key;
+        var cards = kvp.Value;
+
+        // Nama pemain sebagai key, jumlah kartu sebagai value
+        result[player.Name] = cards.Count;
+    }
+
+    return result;
+}
 
 
          public void StartGame()
@@ -60,18 +84,11 @@ namespace Controller;
         DiscardPile.Cards.Push(first);
         _lastPlayedCard = first;
         CurrentColor = first.Color.Value ;
+        IsGameStarted = true;
    
     }
 
-     public void AddPlayer(IPlayer player)
-{
-    Players.Add(player);
-
-    // Make sure the player's card list exists
-    if (!_playerCards.ContainsKey(player))
-        _playerCards[player] = new List<ICard>();
-}
-
+ 
 
 
     public void CallUno(IPlayer player)
@@ -127,6 +144,12 @@ namespace Controller;
 
         
         
+    }
+
+    public IPlayer? GetPlayerByName(string name)
+    {
+        return Players.FirstOrDefault(p =>
+            string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
     }
 
 

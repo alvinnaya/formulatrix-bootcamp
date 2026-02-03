@@ -66,6 +66,8 @@ using System.Text.Json;
     {
         var parts = message.Split(" ");
 
+
+
         switch (parts[1].ToLower())
         {
             case "init":
@@ -76,9 +78,53 @@ using System.Text.Json;
             }
                 // contoh: "init 3" -> buat 3 pemain
                
+            case "createplayer":
+            {
+
+
+                if(parts[0] != "Game" )
+                {
+                    SendJson(socket, "error", new { message = "invalid input" });
+                    break;
+                }
+
+                 if (parts.Length < 3)
+                {
+                    SendJson(socket, "error", new { message = "missing number of players" });
+                    break;
+                }
+
+                  if(game.IsGameStarted)
+                {
+                    SendJson(socket, "error", new { message = "Game already started" });
+                    break;
+                }
+
+                var newPlayerList =  new List<IPlayer>();
+
+                if (int.TryParse(parts[2], out int numOfPlayers))
+                {
+                    CreatePlayers(numOfPlayers, newPlayerList);
+                    game.ChangePlayers(newPlayerList);
+                    SendJson(socket, "info", new { message = $"there was {numOfPlayers} Players" });
+                }
+                break;
+
+                
+            }
 
             case "start":{
 
+
+                if(game.IsGameStarted)
+                {
+                    SendJson(socket, "error", new { message = "Game already started" });
+                    break;
+                }
+
+                if(parts[0] == "Game")
+                {
+                    
                 foreach (var p in players)
                 for (int i = 0; i < 7; i++)
                 {
@@ -91,46 +137,71 @@ using System.Text.Json;
                 //var hand = game.GetPlayerCards(player);
                 var lastCard = game.GetLastPlayedCard();
 
-                // Buat object JSON
-                var state = new
-                {
-                    lastCard = lastCard.ToString(),
-                    currentPlayer = currentPlayer.Name,
-                    // hand = hand.Select((c, idx) => new { index = idx, card = c.ToString() }).ToList()
-                };
+                    var broadcastData = new
+                    {
+                        gameState = new
+                        {
+                            lastCard = lastCard.ToString(),
+                            currentPlayer = currentPlayer.Name
+                        },
+                        allPlayers = GetPlayersCardCount(game) // langsung array/object
+                    };
 
-                // Serialize object ke JSON
-                string json = JsonSerializer.Serialize(state);
+                    BroadcastJson("gameState", broadcastData);
 
-                // Kirim ke client lewat socket
-                Broadcast(json);
 
                
+             
+                }
+                   break;
+            }
+
+            case "getcurrentstate":
+            {
+                 if(!game.IsGameStarted)
+                {
+                    SendJson(socket, "error", new { message = "Game not started" });
+                    break;
+                }
+                var lastCard = game.GetLastPlayedCard();
+
+                 var currentState = new
+                {
+                    lastCard = lastCard.ToString(),
+                    currentPlayer = game.GetCurrentPlayer().Name,
+                };
+
+                SendJson(socket, "gameState", currentState);
                 break;
+                
             }
 
             case "getcard":
             {
-                if(parts[0] == game.GetCurrentPlayer().Name)
+                if(!game.IsGameStarted)
                 {
-                var currentPlayer = game.GetCurrentPlayer();
-                var hand = game.GetPlayerCards(currentPlayer);
+                    SendJson(socket, "error", new { message = "Game not started" });
+                    break;
+                }
+                var player = game.GetPlayerByName(parts[0]);
+                if(player == null)
+                {
+                    SendJson(socket, "error", new { message = "Player not found" });
+                    break;
+                }
+                var hand = game.GetPlayerCards(player);
                 var lastCard = game.GetLastPlayedCard();
 
                 // Buat object JSON
                 var state = new
                 {
                     lastCard = lastCard.ToString(),
-                    currentPlayer = currentPlayer.Name,
+                    player = player.Name,
                     hand = hand.Select((c, idx) => new { index = idx, card = c.ToString() }).ToList()
                 };
 
-                // Serialize object ke JSON
-                string json = JsonSerializer.Serialize(state);
-
-                // Kirim ke client lewat socket
-                socket.Send(json);
-            }
+                SendJson(socket, "playerState", state);
+            
 
                 break;
             }
@@ -139,6 +210,13 @@ using System.Text.Json;
 
             case "draw":
             {
+                    if(!game.IsGameStarted)
+                {
+                    SendJson(socket, "error", new { message = "Game not started" });
+                    break;
+                }
+
+
                          // draw <playerIndex>
                     var currentPlayer = game.GetCurrentPlayer();
 
@@ -148,28 +226,33 @@ using System.Text.Json;
                         game.Nexturn();
                         var hand = game.GetPlayerCards(currentPlayer);
                         var lastCard = game.GetLastPlayedCard();
+                        var nextPlayer = game.GetCurrentPlayer();
 
-                // Buat object JSON
-                var state = new
-                {
-                    lastCard = lastCard.ToString(),
-                    currentPlayer = currentPlayer.Name,
-                    hand = hand.Select((c, idx) => new { index = idx, card = c.ToString() }).ToList()
-                };
+                
 
-                var BroadcastState = new
-                {
-                    lastCard = lastCard.ToString(),
-                    currentPlayer = game.GetCurrentPlayer().Name,
-                    
-                };
+                 var broadcastData = new
+                    {
+                        gameState = new
+                        {
+                            lastCard = lastCard.ToString(),
+                            currentPlayer = nextPlayer.Name
+                        },
+                        allPlayers = GetPlayersCardCount(game) // langsung array/object
+                    };
 
- 
-                string json = JsonSerializer.Serialize(state);
-                socket.Send(JsonSerializer.Serialize(BroadcastState));
+                     var state = new
+                    {
+                        lastCard = lastCard.ToString(),
+                        player = currentPlayer.Name,
+                        hand = game.GetPlayerCards(currentPlayer).Select((c, idx) => new { index = idx, card = c.ToString() }).ToList()
+                    };
+
+                    // Kirim ke client
+                    BroadcastJson("gameState", broadcastData);
+                    SendJson(socket, "playerState", state);
 
              
-                Broadcast(json);
+                
                     }
 
 
@@ -184,7 +267,11 @@ using System.Text.Json;
 
             case "play":
             {
-
+                    if(!game.IsGameStarted)
+                {
+                    SendJson(socket, "error", new { message = "Game not started" });
+                    break;
+                }
                 // play <playerIndex> <cardIndex>
                     var currentPlayer = game.GetCurrentPlayer();
                     var hand = game.GetPlayerCards(currentPlayer);
@@ -201,6 +288,7 @@ using System.Text.Json;
 
                         
                         game.Nexturn();
+                        var nextPlayer = game.GetCurrentPlayer();
                          var state = new
                         {
                             lastCard = game.GetLastPlayedCard().ToString(),
@@ -210,18 +298,17 @@ using System.Text.Json;
 
                         var BroadcastState = new
                         {
-                            lastCard = lastCard.ToString(),
-                            currentPlayer = currentPlayer.Name,
-                            
+                            lastCard = game.GetLastPlayedCard().ToString(),
+                            currentPlayer = nextPlayer.Name,
                         };
 
 
-                socket.Send(JsonSerializer.Serialize(state));
-                Broadcast(JsonSerializer.Serialize(BroadcastState));
+                SendJson(socket, "playerState", state);
+                BroadcastJson("gameState", BroadcastState);
                             }
                     else
                     {
-                        socket.Send($"invalid card " );
+                        SendJson(socket, "error", new { message = "invalid card" });
                     }
                     }
                   
@@ -233,15 +320,21 @@ using System.Text.Json;
             }
                     
             case "uno":
-                
+
+              if(!game.IsGameStarted)
+                {
+                    SendJson(socket, "error", new { message = "Game not started" });
+                    break;
+                }
+                    
                     // uno <playerIndex>
-                    socket.Send($"uno " );
+                    SendJson(socket, "info", new { message = "uno" } );
                    
                 
                 break;
 
             default:
-                socket.Send("Unknown command");
+                SendJson(socket, "error", new { message = "Unknown command" });
                 break;
         }
     }
@@ -257,6 +350,17 @@ void Broadcast(string message)
     }
 }
 
+void SendJson(IWebSocketConnection socket, string type, object data)
+{
+    var payload = new { type, data };
+    socket.Send(JsonSerializer.Serialize(payload));
+}
+
+void BroadcastJson(string type, object data)
+{
+    var payload = new { type, data };
+    Broadcast(JsonSerializer.Serialize(payload));
+}
     
 
 
@@ -270,8 +374,20 @@ void Broadcast(string message)
         
 
 
+List<object> GetPlayersCardCount(GameController game)
+{
+    // Ambil player counts dari fungsi yang sudah ada
+    var playerCounts = game.GetPlayerCardCounts();
 
-   
+    // Buat list object, bukan JSON string
+    var players = playerCounts.Select(kvp => new
+    {
+        name = kvp.Key,
+        cardCount = kvp.Value
+    }).ToList<object>(); // cast ke object supaya bisa digabung dengan object anonim lain
+
+    return players;
+}
 
    
             
