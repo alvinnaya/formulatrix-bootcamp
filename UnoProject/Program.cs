@@ -109,6 +109,7 @@ using System.Text.Json;
                     Console.WriteLine($"Created {numOfPlayers} players.");
                     Console.WriteLine(newPlayerList.Count);
                     newPlayerList.ForEach(p => Console.WriteLine(p.Name));
+                    game.ChangePlayers(newPlayerList);
                     
                     SendJson(socket, "info", new { message = $"there was {numOfPlayers} Players" });
                 }
@@ -128,8 +129,9 @@ using System.Text.Json;
 
                 if(parts[0] == "Game")
                 {
-                    
-                foreach (var p in players)
+                
+                    //this is the main problem
+                foreach (var p in game.Players)
                 for (int i = 0; i < 7; i++)
                 {
                     game.DrawCard(p);
@@ -285,6 +287,10 @@ using System.Text.Json;
                     if (game.IsCardValid(card))
                     {
                         game.PlayCard(currentPlayer, card);
+                        if(card.Type == CardType.Wild || card.Type == CardType.WildDrawFour )
+                        {
+                            
+                        }
 
                         
                         game.Nexturn();
