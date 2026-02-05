@@ -37,6 +37,12 @@ namespace Controller;
         public event Action<IPlayer> GameEnded;
         public bool IsGameStarted { get; private set; }
 
+        public void SetCurrentColor(CardColor color)
+        {
+            CurrentColor = color;
+            CurrentColorChanged?.Invoke(CurrentColor);
+        }
+
         // ===== CONSTRUCTOR =====
         public GameController(List<IPlayer> players, IDeck deck, IDiscardPile discardPile)
         {
@@ -88,7 +94,15 @@ namespace Controller;
         var first = Deck.Cards.Pop();
         DiscardPile.Cards.Push(first);
         _lastPlayedCard = first;
-        CurrentColor = first.Color.Value ;
+        if (first.Color.HasValue)
+        {
+            CurrentColor = first.Color.Value;
+        }
+        else
+        {
+            CurrentColor = GetRandomColor();
+        }
+        CurrentColorChanged?.Invoke(CurrentColor);
         IsGameStarted = true;
    
     }
@@ -243,9 +257,10 @@ private void ResolveCardEffect(ICard card)
     if (card.Color.HasValue)
     {
         CurrentColor = card.Color.Value;
-        CurrentColorChanged?.Invoke(CurrentColor);
+        
     }
 
+    CurrentColorChanged?.Invoke(CurrentColor);
     switch (card.Type)
     {
         case CardType.Skip:
@@ -282,6 +297,7 @@ private void ResolveCardEffect(ICard card)
             break;
 
         case CardType.Wild:
+
         default:
             // number card & wild tanpa efek tambahan
             break;
@@ -341,6 +357,12 @@ private void ResolveCardEffect(ICard card)
         GameEnded?.Invoke(winner);
     }
 
+    private static CardColor GetRandomColor()
+    {
+        var values = Enum.GetValues<CardColor>();
+        var rnd = new Random();
+        return values[rnd.Next(values.Length)];
+    }
 
 
       

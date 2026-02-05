@@ -13,25 +13,7 @@ using System.Text.Json;
 
 
 
-        
-     
-
-        var deck = new Deck.Deck();
-        InitDeck(deck);
-        Shuffle(deck.Cards);
-
-       
-        var discardPile = new DiscardPile();
-
-        
-
-
-
-    //initialize game
-
-        var players = new List<IPlayer>();
-        CreatePlayers(2,players);
-        var game = new GameController(players, deck, discardPile);
+        var rooms = new Dictionary<string, GameController>();
         List<IWebSocketConnection> allSockets = new List<IWebSocketConnection>();
         var server = new WebSocketServer("ws://0.0.0.0:5000");
     
@@ -64,304 +46,228 @@ using System.Text.Json;
 
         void HandleMessage(IWebSocketConnection socket, string message)
     {
-        var parts = message.Split(" ");
+        var parts = message.Split(" ", StringSplitOptions.RemoveEmptyEntries);
 
+        if (parts.Length < 2)
+        {
+            SendJson(socket, "error", new { message = "invalid command format" });
+            return;
+        }
 
-
-        switch (parts[1].ToLower())
+        var command = parts[1].ToLower();
+        switch (command)
         {
             case "init":
-            {
-                 Broadcast("Server got init: ");
-            
+                Broadcast("Server got init: ");
                 break;
-            }
-                // contoh: "init 3" -> buat 3 pemain
-               
-            case "createplayer":
-            {
 
-
-                if(parts[0] != "Game" )
+            case "createroom":
+                if (!RequireGamePrefix(socket, parts)) break;
+                if (!TryGetRoomId(socket, parts, 2, out var newRoomId)) break;
+                if (parts.Length < 4)
                 {
-                    SendJson(socket, "error", new { message = "invalid input" });
+                    SendJson(socket, "error", new { message = "missing roomId or maxPlayers" });
                     break;
                 }
-
-                 if (parts.Length < 3)
+                if (rooms.ContainsKey(newRoomId))
                 {
-                    SendJson(socket, "error", new { message = "missing number of players" });
+                    SendJson(socket, "error", new { message = "room already exists" });
                     break;
                 }
+                if (!int.TryParse(parts[3], out var maxPlayers) || maxPlayers <= 0)
+                {
+                    SendJson(socket, "error", new { message = "invalid maxPlayers" });
+                    break;
+                }
+                CreateRoom(newRoomId, maxPlayers);
+                SendJson(socket, "info", new { message = $"room {newRoomId} created" });
+                break;
 
-                  if(game.IsGameStarted)
+            case "closeroom":
+                if (!RequireGamePrefix(socket, parts)) break;
+                if (!TryGetRoomId(socket, parts, 2, out var closeRoomId)) break;
+                if (!rooms.ContainsKey(closeRoomId))
+                {
+                    SendJson(socket, "error", new { message = "room not found" });
+                    break;
+                }
+                rooms.Remove(closeRoomId);
+                SendJson(socket, "info", new { message = $"room {closeRoomId} closed" });
+                break;
+
+            case "start":
+                if (!RequireGamePrefix(socket, parts)) break;
+                if (!TryGetRoomId(socket, parts, 2, out var startRoomId)) break;
+                if (!TryGetGame(socket, startRoomId, requireStarted: false, out var startGame)) break;
+                if (startGame.IsGameStarted)
                 {
                     SendJson(socket, "error", new { message = "Game already started" });
                     break;
                 }
-
-                
-
-                if (int.TryParse(parts[2], out int numOfPlayers))
+                if (startGame.Players.Count == 0)
                 {
-                    var newPlayerList =  new List<IPlayer>();
-                    CreatePlayers(numOfPlayers, newPlayerList);
-                    Console.WriteLine($"Created {numOfPlayers} players.");
-                    Console.WriteLine(newPlayerList.Count);
-                    newPlayerList.ForEach(p => Console.WriteLine(p.Name));
-                    game.ChangePlayers(newPlayerList);
-                    
-                    SendJson(socket, "info", new { message = $"there was {numOfPlayers} Players" });
-                }
-                break;
-
-                
-            }
-
-            case "start":{
-
-
-                if(game.IsGameStarted)
-                {
-                    SendJson(socket, "error", new { message = "Game already started" });
+                    SendJson(socket, "error", new { message = "no players in room" });
                     break;
                 }
-
-                if(parts[0] == "Game")
-                {
-                
-                    //this is the main problem
-                foreach (var p in game.Players)
+                foreach (var p in startGame.Players)
                 for (int i = 0; i < 7; i++)
                 {
-                    game.DrawCard(p);
+                    startGame.DrawCard(p);
                 }
-            
-                game.StartGame();
-
-                var currentPlayer = game.GetCurrentPlayer();
-                //var hand = game.GetPlayerCards(player);
-                var lastCard = game.GetLastPlayedCard();
-
-                   var gameState = new
+                startGame.StartGame();
+                BroadcastRoomJson(startRoomId, "gameState", new
                 {
-                    lastCard = lastCard.ToString(),
-                    currentPlayer = game.GetCurrentPlayer().Name,
-                    allPlayers = GetPlayersCardCount(game)
-                };
-
-                    BroadcastJson("gameState", gameState);
-
-
-               
-             
-                }
-                   break;
-            }
+                    lastCard = startGame.GetLastPlayedCard().ToString(),
+                    currentPlayer = startGame.GetCurrentPlayer().Name,
+                    allPlayers = GetPlayersCardCount(startGame),
+                    lastColor = startGame.CurrentColor.ToString()
+                });
+                break;
 
             case "getcurrentstate":
-            {
-                 if(!game.IsGameStarted)
+                if (!RequireGamePrefix(socket, parts)) break;
+                if (!TryGetRoomId(socket, parts, 2, out var stateRoomId)) break;
+                if (!TryGetGame(socket, stateRoomId, requireStarted: true, out var stateGame)) break;
+                SendJson(socket, "gameState", new
                 {
-                    SendJson(socket, "error", new { message = "Game not started" });
-                    break;
-                }
-                var lastCard = game.GetLastPlayedCard();
+                    lastCard = stateGame.GetLastPlayedCard().ToString(),
+                    currentPlayer = stateGame.GetCurrentPlayer().Name,
+                    allPlayers = GetPlayersCardCount(stateGame),
+                    lastColor = stateGame.CurrentColor.ToString()
 
-                 var gameState = new
-                {
-                    lastCard = lastCard.ToString(),
-                    currentPlayer = game.GetCurrentPlayer().Name,
-                    allPlayers = GetPlayersCardCount(game)
-                };
-
-                SendJson(socket, "gameState", gameState);
+                });
                 break;
-                
-            }
+
+            case "listrooms":
+                if (!RequireGamePrefix(socket, parts)) break;
+                var roomList = rooms.Select(kvp => new
+                {
+                    roomId = kvp.Key,
+                    players = kvp.Value.Players.Select(p => p.Name).ToList()
+                }).ToList();
+                SendJson(socket, "roomList", new { rooms = roomList });
+                break;
 
             case "getcard":
-            {
-                if(!game.IsGameStarted)
-                {
-                    SendJson(socket, "error", new { message = "Game not started" });
-                    break;
-                }
-                var player = game.GetPlayerByName(parts[0]);
-                if(player == null)
+                if (!TryGetRoomId(socket, parts, 2, out var cardRoomId)) break;
+                if (!TryGetGame(socket, cardRoomId, requireStarted: true, out var cardGame)) break;
+                var cardPlayer = cardGame.GetPlayerByName(parts[0]);
+                if (cardPlayer == null)
                 {
                     SendJson(socket, "error", new { message = "Player not found" });
                     break;
                 }
-                var hand = game.GetPlayerCards(player);
-                var lastCard = game.GetLastPlayedCard();
-
-                // Buat object JSON
-                var state = new
+                var cardHand = cardGame.GetPlayerCards(cardPlayer);
+                SendJson(socket, "playerState", new
                 {
-                    lastCard = lastCard.ToString(),
-                    player = player.Name,
-                    hand = hand.Select((c, idx) => new { index = idx, card = c.ToString() }).ToList()
-                };
-
-                SendJson(socket, "playerState", state);
-            
-
+                    lastCard = cardGame.GetLastPlayedCard().ToString(),
+                    player = cardPlayer.Name,
+                    hand = cardHand.Select((c, idx) => new { index = idx, card = c.ToString() }).ToList()
+                });
                 break;
-            }
-
-             
 
             case "draw":
-            {
-                    if(!game.IsGameStarted)
+                if (!TryGetRoomId(socket, parts, 2, out var drawRoomId)) break;
+                if (!TryGetGame(socket, drawRoomId, requireStarted: true, out var drawGame)) break;
+                var drawPlayer = drawGame.GetCurrentPlayer();
+                if (!IsCurrentPlayer(socket, parts[0], drawPlayer)) break;
+                drawGame.DrawCard(drawPlayer);
+                drawGame.Nexturn();
+                var nextAfterDraw = drawGame.GetCurrentPlayer();
+                BroadcastRoomJson(drawRoomId, "gameState", new
                 {
-                    SendJson(socket, "error", new { message = "Game not started" });
-                    break;
-                }
-
-
-                         // draw <playerIndex>
-                    var currentPlayer = game.GetCurrentPlayer();
-
-                    if(currentPlayer.Name == parts[0])
-                    {
-                        game.DrawCard(currentPlayer);
-                        game.Nexturn();
-                        var hand = game.GetPlayerCards(currentPlayer);
-                        var lastCard = game.GetLastPlayedCard();
-                        var nextPlayer = game.GetCurrentPlayer();
-
-                
-
-                    var gameState = new
-                        {
-                            lastCard = game.GetLastPlayedCard().ToString(),
-                            currentPlayer = nextPlayer.Name,
-                            allPlayers = GetPlayersCardCount(game),
-                            action = $"drawcard"
-                        };
-
-                     var playerState = new
-                    {
-                        lastCard = lastCard.ToString(),
-                        player = currentPlayer.Name,
-                        hand = game.GetPlayerCards(currentPlayer).Select((c, idx) => new { index = idx, card = c.ToString() }).ToList()
-                    };
-
-                    // Kirim ke client
-                    BroadcastJson("gameState", gameState);
-                    SendJson(socket, "playerState", playerState);
-
-             
-                
-                    }
-
-
-            }
-                
-           
-                    
-
-                   
-                
+                    lastCard = drawGame.GetLastPlayedCard().ToString(),
+                    currentPlayer = nextAfterDraw.Name,
+                    allPlayers = GetPlayersCardCount(drawGame),
+                    lastColor = drawGame.CurrentColor.ToString(),
+                    action = "drawcard"
+                });
+                SendJson(socket, "playerState", new
+                {
+                    lastCard = drawGame.GetLastPlayedCard().ToString(),
+                    player = drawPlayer.Name,
+                    hand = drawGame.GetPlayerCards(drawPlayer).Select((c, idx) => new { index = idx, card = c.ToString() }).ToList()
+                });
                 break;
 
             case "play":
-            {
-                    if(!game.IsGameStarted)
+                if (parts.Length < 5)
                 {
-                    SendJson(socket, "error", new { message = "Game not started" });
+                    SendJson(socket, "error", new { message = "missing roomId or cardIndex" });
                     break;
                 }
-                // play <playerIndex> <cardIndex>
-                    var currentPlayer = game.GetCurrentPlayer();
-                    var hand = game.GetPlayerCards(currentPlayer);
-                    var idx = int.Parse(parts[2]);
+                var playRoomId = parts[2];
+                if (!TryGetGame(socket, playRoomId, requireStarted: true, out var playGame)) break;
+                if (!int.TryParse(parts[3], out var cardIndex))
+                {
+                    SendJson(socket, "error", new { message = "invalid cardIndex" });
+                    break;
+                }
+                var playPlayer = playGame.GetCurrentPlayer();
+                if (!IsCurrentPlayer(socket, parts[0], playPlayer)) break;
+                var playHand = playGame.GetPlayerCards(playPlayer);
+                if (cardIndex < 0 || cardIndex >= playHand.Count)
+                {
+                    SendJson(socket, "error", new { message = "cardIndex out of range" });
+                    break;
+                }
+                var playedCard = playHand[cardIndex];
+                if (!playGame.IsCardValid(playedCard))
+                {
+                    SendJson(socket, "error", new { message = "invalid card" });
+                    break;
+                }
+                playGame.PlayCard(playPlayer, playedCard);
+                if(playedCard.Type == CardType.Wild || playedCard.Type == CardType.WildDrawFour)
+                {
                     
-                    var lastCard = game.GetLastPlayedCard();
-
-                    if(currentPlayer.Name == parts[0])
+                    var colorStr = parts[4];
+                    if (!Enum.TryParse<CardColor>(colorStr, true, out var chosenColor))
                     {
-                         var card = hand[idx];
-                    if (game.IsCardValid(card))
-                    {
-                        game.PlayCard(currentPlayer, card);
-                        if(card.Type == CardType.Wild || card.Type == CardType.WildDrawFour )
-                        {
-                            
-                        }
-
-                        
-                        game.Nexturn();
-                        var nextPlayer = game.GetCurrentPlayer();
-                         var playerState = new
-                        {
-                            lastCard = game.GetLastPlayedCard().ToString(),
-                            currentPlayer = currentPlayer.Name,
-                            hand = game.GetPlayerCards(currentPlayer).Select((c, idx) => new { index = idx, card = c.ToString() }).ToList()
-                        };
-
-                        var gameState = new
-                        {
-                            lastCard = game.GetLastPlayedCard().ToString(),
-                            currentPlayer = nextPlayer.Name,
-                            allPlayers = GetPlayersCardCount(game),
-                            action = $"playcard {card.ToString()}"
-                        };
-
-
-                SendJson(socket, "playerState", playerState);
-                BroadcastJson("gameState", gameState);
-                            }
-                    else
-                    {
-                        SendJson(socket, "error", new { message = "invalid card" });
+                        SendJson(socket, "error", new { message = "invalid color choice" });
+                        break;
                     }
-                    }
-                  
-                    
+                    playGame.SetCurrentColor(chosenColor);
                 
+                    
+                    
+                }
+                if(playHand.Count == 1 )
+                {
+                    Thread.Sleep(2000);
+                }
+                playGame.Nexturn();
+                var nextAfterPlay = playGame.GetCurrentPlayer();
+                SendJson(socket, "playerState", new
+                {
+                    lastCard = playGame.GetLastPlayedCard().ToString(),
+                    currentPlayer = playPlayer.Name,
+                    hand = playGame.GetPlayerCards(playPlayer).Select((c, idx) => new { index = idx, card = c.ToString() }).ToList()
+                });
+                BroadcastRoomJson(playRoomId, "gameState", new
+                {
+                    lastCard = playGame.GetLastPlayedCard().ToString(),
+                    currentPlayer = nextAfterPlay.Name,
+                    allPlayers = GetPlayersCardCount(playGame),
+                    action = $"playcard {playedCard}",
+                    lastColor = playGame.CurrentColor.ToString()
+                });
                 break;
 
-                
-            }
-                    
             case "uno":
-            {
-
-                if(!game.IsGameStarted)
+                if (!TryGetRoomId(socket, parts, 2, out var unoRoomId)) break;
+                if (!TryGetGame(socket, unoRoomId, requireStarted: true, out var unoGame)) break;
+                var unoPlayer = unoGame.GetCurrentPlayer();
+                if (!IsCurrentPlayer(socket, parts[0], unoPlayer)) break;
+                unoGame.CallUno(unoPlayer);
+                BroadcastRoomJson(unoRoomId, "info", new { message = $"{unoPlayer.Name} called UNO!" });
+                BroadcastRoomJson(unoRoomId, "UnoState", new
                 {
-                    SendJson(socket, "error", new { message = "Game not started" });
-                    break;
-                }
-
-                    var currentPlayer = game.GetCurrentPlayer();
-
-                    if(currentPlayer.Name == parts[0])
-            {
-                        game.CallUno(currentPlayer);
-                        BroadcastJson("info", new { message = $"{currentPlayer.Name} called UNO!" } );
-                         var gameState = new
-                        {
-                            
-                            currentPlayer = currentPlayer.Name,
-                            UnoCalled = true,
-                            action = $"called uno"
-                            
-                        };
-                        BroadcastJson("UnoState", gameState);
-            }
-                    
-                    // uno <playerIndex>
-                   
-                   
-                
+                    currentPlayer = unoPlayer.Name,
+                    UnoCalled = true,
+                    action = "called uno"
+                });
                 break;
-                
-            }
-
-              
 
             default:
                 SendJson(socket, "error", new { message = "Unknown command" });
@@ -372,10 +278,93 @@ using System.Text.Json;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+bool RequireGamePrefix(IWebSocketConnection socket, string[] parts)
+{
+    if (parts[0] != "Game")
+    {
+        SendJson(socket, "error", new { message = "invalid input" });
+        return false;
+    }
+    return true;
+}
+
+bool TryGetRoomId(IWebSocketConnection socket, string[] parts, int index, out string roomId)
+{
+    roomId = "";
+    if (parts.Length <= index)
+    {
+        SendJson(socket, "error", new { message = "missing roomId" });
+        return false;
+    }
+    roomId = parts[index];
+    return true;
+}
+
+bool TryGetGame(IWebSocketConnection socket, string roomId, bool requireStarted, out GameController game)
+{
+    game = null!;
+    if (!rooms.TryGetValue(roomId, out game))
+    {
+        SendJson(socket, "error", new { message = "room not found" });
+        return false;
+    }
+    if (requireStarted && !game.IsGameStarted)
+    {
+        SendJson(socket, "error", new { message = "Game not started" });
+        return false;
+    }
+    return true;
+}
+
+bool IsCurrentPlayer(IWebSocketConnection socket, string playerName, IPlayer currentPlayer)
+{
+    if (!string.Equals(currentPlayer.Name, playerName, StringComparison.OrdinalIgnoreCase))
+    {
+        SendJson(socket, "error", new { message = "not your turn" });
+        return false;
+    }
+    return true;
+}
+
+void CreateRoom(string roomId, int maxPlayers)
+{
+    var deck = new Deck.Deck();
+    InitDeck(deck);
+    Shuffle(deck.Cards);
+    var discardPile = new DiscardPile();
+    var players = new List<IPlayer>();
+    for (int i = 1; i <= maxPlayers; i++)
+    {
+        var playerName = $"Player{i}";
+        players.Add(new Player(playerName));
+    }
+    var game = new GameController(players, deck, discardPile);
+    rooms[roomId] = game;
+}
+
 void Broadcast(string message)
 {
+    if (allSockets == null)
+    {
+        return;
+    }
     foreach (var s in allSockets.ToList()) // ToList() biar aman kalau ada disconnect
     {
+        if (s == null)
+        {
+            continue;
+        }
         s.Send(message);
     }
 }
@@ -391,17 +380,13 @@ void BroadcastJson(string type, object data)
     var payload = new { type, data };
     Broadcast(JsonSerializer.Serialize(payload));
 }
+
+void BroadcastRoomJson(string roomId, string type, object data)
+{
+    var payload = new { type, data };
+    Broadcast(JsonSerializer.Serialize(payload));
+}
     
-
-
-        // game.AddPlayer(new Player($"Player4"));
-
-
-        //add player
-
-        
-
-        
 
 
 List<object> GetPlayersCardCount(GameController game)
@@ -445,65 +430,6 @@ List<object> GetPlayersCardCount(GameController game)
 
         
 
-        // ===== GAME LOOP =====
-        while (!game.IsGameOver)
-        {
-
-            var player = game.GetCurrentPlayer();
-            var hand = game.GetPlayerCards(player);
-            Console.WriteLine($"Last card: {game.GetLastPlayedCard()}");
-            Console.WriteLine($"\n{player}'s turn");
-
-            Console.WriteLine("\nHand:");
-            for (int i = 0; i < hand.Count; i++)
-                Console.WriteLine($"{i}. {hand[i]}");
-
-            Console.Write("Index kartu / d (draw): ");
-            var input = Console.ReadLine();
-
-            if (input == "d")
-            {
-                DrawCard(player);
-             
-                
-            }
-
-            if (int.TryParse(input, out int idx) &&
-                idx >= 0 && idx < hand.Count)
-            {
-                var card = hand[idx];
-                if (game.IsCardValid(card))
-                {
-                    game.PlayCard(player, card);
-
-                    if (hand.Count == 1)
-                    {
-                        Console.Write("UNO? (y/n): ");
-                        if (Console.ReadLine() == "y")
-                            game.CallUno(player);
-                    }
-                    game.Nexturn();
-                }
-                else
-                {
-                    Console.WriteLine("Invalid card");
-                }
-            }
-        }
-    
-
-    // ===== HELPERS =====
-
-    void DrawCard(IPlayer player)
-{
-        game.DrawCard(player);
-        game.Nexturn();
-}
-
-
-
-
-
      void InitDeck(Deck.Deck deck)
     {
         foreach (CardColor color in Enum.GetValues<CardColor>())
@@ -542,16 +468,4 @@ List<object> GetPlayersCardCount(GameController game)
         }
     }
 
-   void CreatePlayers(int jumlah, List<IPlayer> players)
-    {
-      
-        for (int i = 1; i <= jumlah; i++)
-        {
-            players.Add(new Player($"Player{i}"));
-        }
-       
-    }
-
-
-
-
+    
