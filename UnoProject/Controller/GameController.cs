@@ -10,15 +10,15 @@ namespace Controller;
  public class GameController
     {
         // ===== STATE =====
-        public List<IPlayer> Players { get; private set; }
+        public List<IPlayer>? Players { get; private set; }
         
         public IDeck Deck { get; private set; }
         public IDiscardPile DiscardPile { get; private set; }
 
         private Dictionary<IPlayer, List<ICard>> _playerCards;
         private ICard _lastPlayedCard;
-        private IPlayer _lastPlayer;
-        private IPlayer _currentPlayer;
+        private IPlayer? _lastPlayer;
+        private IPlayer? _currentPlayer;
 
         public Direction Direction { get; private set; }
         public CardColor CurrentColor { get; private set; }
@@ -38,17 +38,20 @@ namespace Controller;
         public bool IsGameStarted { get; private set; }
 
         // ===== CONSTRUCTOR =====
-        public GameController(List<IPlayer> players, IDeck deck, IDiscardPile discardPile)
+        public GameController(List<IPlayer>? players, IDeck deck, IDiscardPile discardPile)
         {
             Players = players;
             Deck = deck;
             DiscardPile = discardPile;
 
             _playerCards = new Dictionary<IPlayer, List<ICard>>();
-            foreach (var p in players)
-                _playerCards[p] = new List<ICard>();
+            if (players != null)
+            {
+                foreach (var p in players)
+                    _playerCards[p] = new List<ICard>();
+            }
 
-            _currentPlayer = players[0];
+            _currentPlayer = players != null && players.Count > 0 ? players[0] : null;
             Direction = Direction.Clockwise;
             IsGameStarted = false;
         }
@@ -60,7 +63,7 @@ namespace Controller;
         foreach (var p in Players)
             _playerCards[p] = new List<ICard>();
 
-        _currentPlayer = players[0];
+        _currentPlayer = players.Count > 0 ? players[0] : null;
     }
 
 
@@ -83,12 +86,24 @@ namespace Controller;
 
          public void StartGame()
     {
+        if (Players == null || Players.Count == 0)
+            return;
+
         GameStarted?.Invoke();
         _currentPlayer = Players[0];
         var first = Deck.Cards.Pop();
         DiscardPile.Cards.Push(first);
         _lastPlayedCard = first;
-        CurrentColor = first.Color.Value ;
+       if (first.Color.HasValue)
+        {
+            CurrentColor = first.Color.Value;
+        }
+        else
+        {
+            // Wild pertama: pilih warna default/random
+            var colors = Enum.GetValues<CardColor>();
+            CurrentColor = colors[new Random().Next(colors.Length)];
+        }
         IsGameStarted = true;
    
     }
@@ -110,6 +125,7 @@ namespace Controller;
    public void Nexturn()
     {
         if (IsGameOver) return;
+        if (_currentPlayer == null) return;
 
         TurnStarted?.Invoke(_currentPlayer);
         CheckUno(_currentPlayer);
@@ -125,7 +141,7 @@ namespace Controller;
     }
 
 
-    public void PlayCard(IPlayer player, ICard card)
+        public void PlayCard(IPlayer player, ICard card)
     {
       
         if (IsCardValid(card))
@@ -153,6 +169,7 @@ namespace Controller;
 
     public IPlayer? GetPlayerByName(string name)
     {
+        if (Players == null) return null;
         return Players.FirstOrDefault(p =>
             string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
     }
@@ -171,8 +188,13 @@ namespace Controller;
     }
 
     public ICard GetLastPlayedCard() => _lastPlayedCard;
-    public IPlayer GetLastPlayer() => _lastPlayer;
-    public IPlayer GetCurrentPlayer() => _currentPlayer;
+    public IPlayer? GetLastPlayer() => _lastPlayer;
+    public IPlayer GetCurrentPlayer()
+    {
+        if (_currentPlayer == null)
+            throw new InvalidOperationException("Players not initialized.");
+        return _currentPlayer;
+    }
 
     public IReadOnlyList<ICard> GetPlayerCards(IPlayer player) => _playerCards[player].AsReadOnly();
 
@@ -199,9 +221,18 @@ namespace Controller;
         return false;
     }
 
+    public void SetCurrentColor(CardColor color)
+    {
+        CurrentColor = color;
+        CurrentColorChanged?.Invoke(CurrentColor);
+    }
+
 
     private void MoveToNextPlayer(int skip)
     {
+        if (Players == null || _currentPlayer == null)
+            throw new InvalidOperationException("Players not initialized.");
+
         int index = Players.IndexOf(_currentPlayer);
         int count = Players.Count;
 
@@ -215,6 +246,9 @@ namespace Controller;
 
     private  IPlayer GetNextPlayer(int skip)
     {
+        if (Players == null || _currentPlayer == null)
+            throw new InvalidOperationException("Players not initialized.");
+
          int index = Players.IndexOf(_currentPlayer);
         int count = Players.Count;
 
@@ -257,7 +291,7 @@ private void ResolveCardEffect(ICard card)
             ReverseDirection();
 
             // aturan UNO: 2 player = skip
-            if (Players.Count == 2)
+            if (Players != null && Players.Count == 2)
                 MoveToNextPlayer(1);
             break;
 

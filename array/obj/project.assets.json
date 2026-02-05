@@ -8,19 +8,19 @@
     "net9.0": []
   },
   "packageFolders": {
-    "C:\\Users\\alvin\\.nuget\\packages\\": {}
+    "C:\\Users\\Alvian Naya\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "A:\\coding\\c#_Formulatrix\\formulatrix-bootcamp\\array\\array.csproj",
+      "projectUniqueName": "C:\\Users\\Alvian Naya\\Documents\\project ANP\\array\\array.csproj",
       "projectName": "array",
-      "projectPath": "A:\\coding\\c#_Formulatrix\\formulatrix-bootcamp\\array\\array.csproj",
-      "packagesPath": "C:\\Users\\alvin\\.nuget\\packages\\",
-      "outputPath": "A:\\coding\\c#_Formulatrix\\formulatrix-bootcamp\\array\\obj\\",
+      "projectPath": "C:\\Users\\Alvian Naya\\Documents\\project ANP\\array\\array.csproj",
+      "packagesPath": "C:\\Users\\Alvian Naya\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\Alvian Naya\\Documents\\project ANP\\array\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\Users\\alvin\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        "C:\\Users\\Alvian Naya\\AppData\\Roaming\\NuGet\\NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net9.0"
@@ -44,7 +44,7 @@
         "auditLevel": "low",
         "auditMode": "direct"
       },
-      "SdkAnalysisLevel": "10.0.100"
+      "SdkAnalysisLevel": "9.0.300"
     },
     "frameworks": {
       "net9.0": {
@@ -60,24 +60,6 @@
         ],
         "assetTargetFallback": true,
         "warn": true,
-        "downloadDependencies": [
-          {
-            "name": "Microsoft.AspNetCore.App.Ref",
-            "version": "[9.0.11, 9.0.11]"
-          },
-          {
-            "name": "Microsoft.NETCore.App.Host.win-x64",
-            "version": "[9.0.11, 9.0.11]"
-          },
-          {
-            "name": "Microsoft.NETCore.App.Ref",
-            "version": "[9.0.11, 9.0.11]"
-          },
-          {
-            "name": "Microsoft.WindowsDesktop.App.Ref",
-            "version": "[9.0.11, 9.0.11]"
-          }
-        ],
         "frameworkReferences": {
           "Microsoft.AspNetCore.App": {
             "privateAssets": "none"
@@ -86,7 +68,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.101/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.306/PortableRuntimeIdentifierGraph.json"
       }
     }
   }

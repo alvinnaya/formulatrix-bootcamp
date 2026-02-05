@@ -29,11 +29,23 @@ using System.Text.Json;
 
     //initialize game
 
-        var players = new List<IPlayer>();
-        CreatePlayers(2,players);
-        var game = new GameController(players, deck, discardPile);
+    
+        var game = new GameController( new List<IPlayer>(),deck, discardPile);
         List<IWebSocketConnection> allSockets = new List<IWebSocketConnection>();
         var server = new WebSocketServer("ws://0.0.0.0:5000");
+
+  
+        // Hook game events -> broadcast
+        game.GameStarted += () => BroadcastGameState("gamestart");
+        game.CardPlayed += (p, c) => BroadcastGameState($"playcard {c}");
+        game.CardDrawn += (p, c) => BroadcastGameState($"drawcard {c}");
+        game.TurnStarted += p => BroadcastGameState($"turnstart {p.Name}");
+        game.TurnEnded += p => BroadcastGameState($"turnend {p.Name}");
+        game.DirectionChanged += d => BroadcastGameState($"direction {d}");
+        game.CurrentColorChanged += c => BroadcastGameState($"color {c}");
+        game.UnoCalled += p => BroadcastJson("info", new { message = $"{p.Name} called UNO!" });
+        game.UnoPenaltyApplied += p => BroadcastJson("info", new { message = $"{p.Name} penalty +2" });
+        game.GameEnded += p => BroadcastJson("GameEnd", new { winner = $"{p.Name} has win"});
     
         server.Start(socket =>
         {
@@ -50,10 +62,10 @@ using System.Text.Json;
                 allSockets.Remove(socket);
             };
 
-            socket.OnMessage = message =>
+            socket.OnMessage = async message =>
             {
                 Console.WriteLine("Received: " + message);
-                HandleMessage(socket, message);
+                await HandleMessage(socket, message);
             };
         });
 
@@ -62,7 +74,7 @@ using System.Text.Json;
 
 
 
-        void HandleMessage(IWebSocketConnection socket, string message)
+async Task HandleMessage(IWebSocketConnection socket, string message)
     {
         var parts = message.Split(" ");
 
@@ -147,7 +159,8 @@ using System.Text.Json;
                 {
                     lastCard = lastCard.ToString(),
                     currentPlayer = game.GetCurrentPlayer().Name,
-                    allPlayers = GetPlayersCardCount(game)
+                    allPlayers = GetPlayersCardCount(game),
+                    currentColor = game.CurrentColor.ToString(),
                 };
 
                     BroadcastJson("gameState", gameState);
@@ -161,6 +174,7 @@ using System.Text.Json;
 
             case "getcurrentstate":
             {
+               
                  if(!game.IsGameStarted)
                 {
                     SendJson(socket, "error", new { message = "Game not started" });
@@ -172,7 +186,8 @@ using System.Text.Json;
                 {
                     lastCard = lastCard.ToString(),
                     currentPlayer = game.GetCurrentPlayer().Name,
-                    allPlayers = GetPlayersCardCount(game)
+                    allPlayers = GetPlayersCardCount(game),
+                    currentColor = game.CurrentColor.ToString(),
                 };
 
                 SendJson(socket, "gameState", gameState);
@@ -201,7 +216,7 @@ using System.Text.Json;
                 {
                     lastCard = lastCard.ToString(),
                     player = player.Name,
-                    hand = hand.Select((c, idx) => new { index = idx, card = c.ToString() }).ToList()
+                    hand = BuildHandState(hand)
                 };
 
                 SendJson(socket, "playerState", state);
@@ -239,14 +254,15 @@ using System.Text.Json;
                             lastCard = game.GetLastPlayedCard().ToString(),
                             currentPlayer = nextPlayer.Name,
                             allPlayers = GetPlayersCardCount(game),
-                            action = $"drawcard"
+                            action = $"drawcard",
+                            currentColor = game.CurrentColor.ToString(),
                         };
 
                      var playerState = new
                     {
                         lastCard = lastCard.ToString(),
                         player = currentPlayer.Name,
-                        hand = game.GetPlayerCards(currentPlayer).Select((c, idx) => new { index = idx, card = c.ToString() }).ToList()
+                        hand = BuildHandState(game.GetPlayerCards(currentPlayer))
                     };
 
                     // Kirim ke client
@@ -275,6 +291,8 @@ using System.Text.Json;
                     break;
                 }
                 // play <playerIndex> <cardIndex>
+               
+                    
                     var currentPlayer = game.GetCurrentPlayer();
                     var hand = game.GetPlayerCards(currentPlayer);
                     var idx = int.Parse(parts[2]);
@@ -286,12 +304,50 @@ using System.Text.Json;
                          var card = hand[idx];
                     if (game.IsCardValid(card))
                     {
-                        game.PlayCard(currentPlayer, card);
-                        if(card.Type == CardType.Wild || card.Type == CardType.WildDrawFour )
+                        
+                        
+                        if (card.Type == CardType.Wild || card.Type == CardType.WildDrawFour)
                         {
-                            
+                           
+                            if (!Enum.TryParse<CardColor>(parts[3], true, out CardColor chosenColor) ||
+                                !Enum.IsDefined(typeof(CardColor), chosenColor))
+                            {
+                                SendJson(socket, "error", new { message = "invalid color for wild card" });
+                                break;
+                            }
+
+                            game.SetCurrentColor(chosenColor);
+
                         }
 
+                        game.PlayCard(currentPlayer, card);
+                    
+                        
+                        if(hand.Count == 1)
+                        {
+                             var playerStateUno = new
+                            {
+                                lastCard = game.GetLastPlayedCard().ToString(),
+                                currentPlayer = currentPlayer.Name,
+                                hand = BuildHandState(game.GetPlayerCards(currentPlayer))
+                            };
+
+                             var gameStateUno = new
+                            {
+                                lastCard = game.GetLastPlayedCard().ToString(),
+                                currentPlayer = currentPlayer.Name,
+                                allPlayers = GetPlayersCardCount(game),
+                                action = $"playcard {card.ToString()}",
+                                currentColor = game.CurrentColor.ToString(),
+                            };
+
+                            SendJson(socket, "playerState", playerStateUno);
+                            BroadcastJson("gameState", gameStateUno);
+
+                             await Task.Delay(3000);
+                          
+                            
+                        }
                         
                         game.Nexturn();
                         var nextPlayer = game.GetCurrentPlayer();
@@ -299,7 +355,7 @@ using System.Text.Json;
                         {
                             lastCard = game.GetLastPlayedCard().ToString(),
                             currentPlayer = currentPlayer.Name,
-                            hand = game.GetPlayerCards(currentPlayer).Select((c, idx) => new { index = idx, card = c.ToString() }).ToList()
+                            hand = BuildHandState(game.GetPlayerCards(currentPlayer))
                         };
 
                         var gameState = new
@@ -307,7 +363,8 @@ using System.Text.Json;
                             lastCard = game.GetLastPlayedCard().ToString(),
                             currentPlayer = nextPlayer.Name,
                             allPlayers = GetPlayersCardCount(game),
-                            action = $"playcard {card.ToString()}"
+                            action = $"playcard {card.ToString()}",
+                            currentColor = game.CurrentColor.ToString(),
                         };
 
 
@@ -336,22 +393,22 @@ using System.Text.Json;
                     break;
                 }
 
-                    var currentPlayer = game.GetCurrentPlayer();
-
-                    if(currentPlayer.Name == parts[0])
-            {
-                        game.CallUno(currentPlayer);
+                   var playerName = parts[0];
+                   var currentPlayer = game.GetPlayerByName(playerName);
+                    
+                      game.CallUno(currentPlayer);
                         BroadcastJson("info", new { message = $"{currentPlayer.Name} called UNO!" } );
                          var gameState = new
                         {
                             
                             currentPlayer = currentPlayer.Name,
                             UnoCalled = true,
-                            action = $"called uno"
+                            action = $"called uno",
+                            currentColor = game.CurrentColor.ToString(),
                             
                         };
                         BroadcastJson("UnoState", gameState);
-            }
+            
                     
                     // uno <playerIndex>
                    
@@ -369,8 +426,22 @@ using System.Text.Json;
         }
     }
 
+void BroadcastGameState(string action)
+        {
+            if (!game.IsGameStarted) return;
 
+            var lastCard = game.GetLastPlayedCard();
+            var gameState = new
+            {
+                lastCard = lastCard?.ToString() ?? string.Empty,
+                currentPlayer = game.GetCurrentPlayer().Name,
+                allPlayers = GetPlayersCardCount(game),
+                action = action,
+                currentColor = game.CurrentColor.ToString(),
+            };
 
+            BroadcastJson("gameState", gameState);
+        }
 
 void Broadcast(string message)
 {
@@ -391,19 +462,7 @@ void BroadcastJson(string type, object data)
     var payload = new { type, data };
     Broadcast(JsonSerializer.Serialize(payload));
 }
-    
-
-
-        // game.AddPlayer(new Player($"Player4"));
-
-
-        //add player
-
         
-
-        
-
-
 List<object> GetPlayersCardCount(GameController game)
 {
     // Ambil player counts dari fungsi yang sudah ada
@@ -419,6 +478,18 @@ List<object> GetPlayersCardCount(GameController game)
     return players;
 }
 
+List<object> BuildHandState(IReadOnlyList<ICard> hand)
+{
+    return hand
+        .Select((c, idx) => new
+        {
+            index = idx,
+            card = c.ToString(),
+            cardColor = c.Color?.ToString() ?? string.Empty,
+            cardType = c.Type.ToString()
+        })
+        .ToList<object>();
+}
    
             
         

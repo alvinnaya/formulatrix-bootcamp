@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "A:\\coding\\c#_Formulatrix\\formulatrix-bootcamp\\textbox\\textbox.csproj": {}
+    "C:\\Users\\Alvian Naya\\Documents\\project ANP\\textbox\\textbox.csproj": {}
   },
   "projects": {
-    "A:\\coding\\c#_Formulatrix\\formulatrix-bootcamp\\textbox\\textbox.csproj": {
+    "C:\\Users\\Alvian Naya\\Documents\\project ANP\\textbox\\textbox.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "A:\\coding\\c#_Formulatrix\\formulatrix-bootcamp\\textbox\\textbox.csproj",
+        "projectUniqueName": "C:\\Users\\Alvian Naya\\Documents\\project ANP\\textbox\\textbox.csproj",
         "projectName": "textbox",
-        "projectPath": "A:\\coding\\c#_Formulatrix\\formulatrix-bootcamp\\textbox\\textbox.csproj",
-        "packagesPath": "C:\\Users\\alvin\\.nuget\\packages\\",
-        "outputPath": "A:\\coding\\c#_Formulatrix\\formulatrix-bootcamp\\textbox\\obj\\",
+        "projectPath": "C:\\Users\\Alvian Naya\\Documents\\project ANP\\textbox\\textbox.csproj",
+        "packagesPath": "C:\\Users\\Alvian Naya\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\Alvian Naya\\Documents\\project ANP\\textbox\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\alvin\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "C:\\Users\\Alvian Naya\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net9.0"
@@ -38,7 +38,7 @@
           "auditLevel": "low",
           "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "10.0.100"
+        "SdkAnalysisLevel": "9.0.300"
       },
       "frameworks": {
         "net9.0": {
@@ -54,24 +54,6 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
-          "downloadDependencies": [
-            {
-              "name": "Microsoft.AspNetCore.App.Ref",
-              "version": "[9.0.11, 9.0.11]"
-            },
-            {
-              "name": "Microsoft.NETCore.App.Host.win-x64",
-              "version": "[9.0.11, 9.0.11]"
-            },
-            {
-              "name": "Microsoft.NETCore.App.Ref",
-              "version": "[9.0.11, 9.0.11]"
-            },
-            {
-              "name": "Microsoft.WindowsDesktop.App.Ref",
-              "version": "[9.0.11, 9.0.11]"
-            }
-          ],
           "frameworkReferences": {
             "Microsoft.AspNetCore.App": {
               "privateAssets": "none"
@@ -80,7 +62,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.101/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.306/PortableRuntimeIdentifierGraph.json"
         }
       }
     }
