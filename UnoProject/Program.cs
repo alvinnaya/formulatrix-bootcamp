@@ -45,7 +45,7 @@ using System.Text.Json;
         game.CurrentColorChanged += c => BroadcastGameState($"color {c}");
         game.UnoCalled += p => BroadcastJson("info", new { message = $"{p.Name} called UNO!" });
         game.UnoPenaltyApplied += p => BroadcastJson("info", new { message = $"{p.Name} penalty +2" });
-        game.GameEnded += p => BroadcastJson("GameEnd", new { winner = $"{p.Name} has win"});
+        game.GameEnded += p => BroadcastJson("GameEnd", new { winner = $"{p.Name} has win", gameEnd= game.IsGameOver});
     
         server.Start(socket =>
         {
@@ -81,14 +81,7 @@ async Task HandleMessage(IWebSocketConnection socket, string message)
 
 
         switch (parts[1].ToLower())
-        {
-            case "init":
-            {
-                 Broadcast("Server got init: ");
-            
-                break;
-            }
-                // contoh: "init 3" -> buat 3 pemain
+        {    
                
             case "createplayer":
             {
@@ -118,8 +111,8 @@ async Task HandleMessage(IWebSocketConnection socket, string message)
                 {
                     var newPlayerList =  new List<IPlayer>();
                     CreatePlayers(numOfPlayers, newPlayerList);
-                    Console.WriteLine($"Created {numOfPlayers} players.");
-                    Console.WriteLine(newPlayerList.Count);
+                    // Console.WriteLine($"Created {numOfPlayers} players.");
+                    // Console.WriteLine(newPlayerList.Count);
                     newPlayerList.ForEach(p => Console.WriteLine(p.Name));
                     game.ChangePlayers(newPlayerList);
                     
@@ -136,6 +129,12 @@ async Task HandleMessage(IWebSocketConnection socket, string message)
                 if(game.IsGameStarted)
                 {
                     SendJson(socket, "error", new { message = "Game already started" });
+                    break;
+                }
+
+                if (game.Players == null || game.Players.Count == 0)
+                {
+                    SendJson(socket, "error", new { message = "Players not set" });
                     break;
                 }
 
@@ -161,15 +160,35 @@ async Task HandleMessage(IWebSocketConnection socket, string message)
                     currentPlayer = game.GetCurrentPlayer().Name,
                     allPlayers = GetPlayersCardCount(game),
                     currentColor = game.CurrentColor.ToString(),
-                };
+                };  
 
-                    BroadcastJson("gameState", gameState);
+
+                    BroadcastGameState("game start");
 
 
                
              
                 }
                    break;
+            }
+
+            case "reset":
+            {
+                if (parts[0] != "Game")
+                {
+                    SendJson(socket, "error", new { message = "invalid input" });
+                    break;
+                }
+
+                var newDeck = new Deck.Deck();
+                InitDeck(newDeck);
+                Shuffle(newDeck.Cards);
+                var newDiscard = new DiscardPile();
+
+                game.ResetGame(newDeck, newDiscard);
+
+                SendJson(socket, "info", new { message = "game reset" });
+                break;
             }
 
             case "getcurrentstate":
@@ -188,6 +207,8 @@ async Task HandleMessage(IWebSocketConnection socket, string message)
                     currentPlayer = game.GetCurrentPlayer().Name,
                     allPlayers = GetPlayersCardCount(game),
                     currentColor = game.CurrentColor.ToString(),
+                    gameEnd = game.IsGameOver,
+                    isGameStarted= game.isGameStarted
                 };
 
                 SendJson(socket, "gameState", gameState);
@@ -223,9 +244,7 @@ async Task HandleMessage(IWebSocketConnection socket, string message)
             
 
                 break;
-            }
-
-             
+            }  
 
             case "draw":
             {
@@ -247,16 +266,6 @@ async Task HandleMessage(IWebSocketConnection socket, string message)
                         var lastCard = game.GetLastPlayedCard();
                         var nextPlayer = game.GetCurrentPlayer();
 
-                
-
-                    var gameState = new
-                        {
-                            lastCard = game.GetLastPlayedCard().ToString(),
-                            currentPlayer = nextPlayer.Name,
-                            allPlayers = GetPlayersCardCount(game),
-                            action = $"drawcard",
-                            currentColor = game.CurrentColor.ToString(),
-                        };
 
                      var playerState = new
                     {
@@ -266,7 +275,8 @@ async Task HandleMessage(IWebSocketConnection socket, string message)
                     };
 
                     // Kirim ke client
-                    BroadcastJson("gameState", gameState);
+                  
+                    BroadcastGameState($"{currentPlayer} draw card");
                     SendJson(socket, "playerState", playerState);
 
              
@@ -358,18 +368,8 @@ async Task HandleMessage(IWebSocketConnection socket, string message)
                             hand = BuildHandState(game.GetPlayerCards(currentPlayer))
                         };
 
-                        var gameState = new
-                        {
-                            lastCard = game.GetLastPlayedCard().ToString(),
-                            currentPlayer = nextPlayer.Name,
-                            allPlayers = GetPlayersCardCount(game),
-                            action = $"playcard {card.ToString()}",
-                            currentColor = game.CurrentColor.ToString(),
-                        };
-
-
                 SendJson(socket, "playerState", playerState);
-                BroadcastJson("gameState", gameState);
+                BroadcastGameState($"{currentPlayer} has played card {lastCard}");
                             }
                     else
                     {
@@ -418,8 +418,7 @@ async Task HandleMessage(IWebSocketConnection socket, string message)
                 
             }
 
-              
-
+            
             default:
                 SendJson(socket, "error", new { message = "Unknown command" });
                 break;
@@ -438,6 +437,8 @@ void BroadcastGameState(string action)
                 allPlayers = GetPlayersCardCount(game),
                 action = action,
                 currentColor = game.CurrentColor.ToString(),
+                gameEnd = game.IsGameOver,
+
             };
 
             BroadcastJson("gameState", gameState);
@@ -490,8 +491,65 @@ List<object> BuildHandState(IReadOnlyList<ICard> hand)
         })
         .ToList<object>();
 }
-   
-            
+
+void DrawCard(IPlayer player)
+{
+        game.DrawCard(player);
+        game.Nexturn();
+}
+
+void InitDeck(Deck.Deck deck)
+    {
+        foreach (CardColor color in Enum.GetValues<CardColor>())
+        {
+            deck.Cards.Push(new Card(CardType.Number0, color));
+            deck.Cards.Push(new Card(CardType.Number1, color));
+            deck.Cards.Push(new Card(CardType.Number2, color));
+            deck.Cards.Push(new Card(CardType.Number3, color));
+            deck.Cards.Push(new Card(CardType.Number4, color));
+            deck.Cards.Push(new Card(CardType.Number5, color));
+            deck.Cards.Push(new Card(CardType.Number6, color));
+            deck.Cards.Push(new Card(CardType.Number7, color));
+            deck.Cards.Push(new Card(CardType.Number8, color));
+            deck.Cards.Push(new Card(CardType.Number9, color));
+
+            deck.Cards.Push(new Card(CardType.Skip, color));
+            deck.Cards.Push(new Card(CardType.Reverse, color));
+            deck.Cards.Push(new Card(CardType.DrawTwo, color));
+        }
+
+        deck.Cards.Push(new Card(CardType.Wild));
+        deck.Cards.Push(new Card(CardType.WildDrawFour));
+    }
+
+void Shuffle<T>(Stack<T> stack)
+    {
+        var list = new List<T>(stack);
+        var rnd = new Random();
+        stack.Clear();
+
+        while (list.Count > 0)
+        {
+            int i = rnd.Next(list.Count);
+            stack.Push(list[i]);
+            list.RemoveAt(i);
+        }
+    }
+
+void CreatePlayers(int jumlah, List<IPlayer> players)
+    {
+      
+        for (int i = 1; i <= jumlah; i++)
+        {
+            players.Add(new Player($"Player{i}"));
+        }
+       
+    }
+
+
+
+
+         
         
    
 
@@ -517,112 +575,50 @@ List<object> BuildHandState(IReadOnlyList<ICard> hand)
         
 
         // ===== GAME LOOP =====
-        while (!game.IsGameOver)
-        {
+        // while (!game.IsGameOver)
+        // {
 
-            var player = game.GetCurrentPlayer();
-            var hand = game.GetPlayerCards(player);
-            Console.WriteLine($"Last card: {game.GetLastPlayedCard()}");
-            Console.WriteLine($"\n{player}'s turn");
+        //     var player = game.GetCurrentPlayer();
+        //     var hand = game.GetPlayerCards(player);
+        //     Console.WriteLine($"Last card: {game.GetLastPlayedCard()}");
+        //     Console.WriteLine($"\n{player}'s turn");
 
-            Console.WriteLine("\nHand:");
-            for (int i = 0; i < hand.Count; i++)
-                Console.WriteLine($"{i}. {hand[i]}");
+        //     Console.WriteLine("\nHand:");
+        //     for (int i = 0; i < hand.Count; i++)
+        //         Console.WriteLine($"{i}. {hand[i]}");
 
-            Console.Write("Index kartu / d (draw): ");
-            var input = Console.ReadLine();
+        //     Console.Write("Index kartu / d (draw): ");
+        //     var input = Console.ReadLine();
 
-            if (input == "d")
-            {
-                DrawCard(player);
+        //     if (input == "d")
+        //     {
+        //         DrawCard(player);
              
                 
-            }
+        //     }
 
-            if (int.TryParse(input, out int idx) &&
-                idx >= 0 && idx < hand.Count)
-            {
-                var card = hand[idx];
-                if (game.IsCardValid(card))
-                {
-                    game.PlayCard(player, card);
+        //     if (int.TryParse(input, out int idx) &&
+        //         idx >= 0 && idx < hand.Count)
+        //     {
+        //         var card = hand[idx];
+        //         if (game.IsCardValid(card))
+        //         {
+        //             game.PlayCard(player, card);
 
-                    if (hand.Count == 1)
-                    {
-                        Console.Write("UNO? (y/n): ");
-                        if (Console.ReadLine() == "y")
-                            game.CallUno(player);
-                    }
-                    game.Nexturn();
-                }
-                else
-                {
-                    Console.WriteLine("Invalid card");
-                }
-            }
-        }
+        //             if (hand.Count == 1)
+        //             {
+        //                 Console.Write("UNO? (y/n): ");
+        //                 if (Console.ReadLine() == "y")
+        //                     game.CallUno(player);
+        //             }
+        //             game.Nexturn();
+        //         }
+        //         else
+        //         {
+        //             Console.WriteLine("Invalid card");
+        //         }
+        //     }
+        // }
     
 
     // ===== HELPERS =====
-
-    void DrawCard(IPlayer player)
-{
-        game.DrawCard(player);
-        game.Nexturn();
-}
-
-
-
-
-
-     void InitDeck(Deck.Deck deck)
-    {
-        foreach (CardColor color in Enum.GetValues<CardColor>())
-        {
-            deck.Cards.Push(new Card(CardType.Number0, color));
-            deck.Cards.Push(new Card(CardType.Number1, color));
-            deck.Cards.Push(new Card(CardType.Number2, color));
-            deck.Cards.Push(new Card(CardType.Number3, color));
-            deck.Cards.Push(new Card(CardType.Number4, color));
-            deck.Cards.Push(new Card(CardType.Number5, color));
-            deck.Cards.Push(new Card(CardType.Number6, color));
-            deck.Cards.Push(new Card(CardType.Number7, color));
-            deck.Cards.Push(new Card(CardType.Number8, color));
-            deck.Cards.Push(new Card(CardType.Number9, color));
-
-            deck.Cards.Push(new Card(CardType.Skip, color));
-            deck.Cards.Push(new Card(CardType.Reverse, color));
-            deck.Cards.Push(new Card(CardType.DrawTwo, color));
-        }
-
-        deck.Cards.Push(new Card(CardType.Wild));
-        deck.Cards.Push(new Card(CardType.WildDrawFour));
-    }
-
-    void Shuffle<T>(Stack<T> stack)
-    {
-        var list = new List<T>(stack);
-        var rnd = new Random();
-        stack.Clear();
-
-        while (list.Count > 0)
-        {
-            int i = rnd.Next(list.Count);
-            stack.Push(list[i]);
-            list.RemoveAt(i);
-        }
-    }
-
-   void CreatePlayers(int jumlah, List<IPlayer> players)
-    {
-      
-        for (int i = 1; i <= jumlah; i++)
-        {
-            players.Add(new Player($"Player{i}"));
-        }
-       
-    }
-
-
-
-

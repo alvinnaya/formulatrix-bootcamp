@@ -16,7 +16,7 @@ namespace Controller;
         public IDiscardPile DiscardPile { get; private set; }
 
         private Dictionary<IPlayer, List<ICard>> _playerCards;
-        private ICard _lastPlayedCard;
+        private ICard? _lastPlayedCard;
         private IPlayer? _lastPlayer;
         private IPlayer? _currentPlayer;
 
@@ -84,7 +84,7 @@ namespace Controller;
 }
 
 
-         public void StartGame()
+    public void StartGame()
     {
         if (Players == null || Players.Count == 0)
             return;
@@ -187,7 +187,7 @@ namespace Controller;
       
     }
 
-    public ICard GetLastPlayedCard() => _lastPlayedCard;
+    public ICard? GetLastPlayedCard() => _lastPlayedCard;
     public IPlayer? GetLastPlayer() => _lastPlayer;
     public IPlayer GetCurrentPlayer()
     {
@@ -375,6 +375,22 @@ private void ResolveCardEffect(ICard card)
         GameEnded?.Invoke(winner);
     }
 
+    public void ResetGame(IDeck deck, IDiscardPile discardPile)
+    {
+        Deck = deck;
+        DiscardPile = discardPile;
+
+        Players = null;
+        _playerCards = new Dictionary<IPlayer, List<ICard>>();
+        _lastPlayedCard = null;
+        _lastPlayer = null;
+        _currentPlayer = null;
+
+        Direction = Direction.Clockwise;
+        CurrentColor = default;
+        IsGameOver = false;
+        IsGameStarted = false;
+    }
 
 
       
