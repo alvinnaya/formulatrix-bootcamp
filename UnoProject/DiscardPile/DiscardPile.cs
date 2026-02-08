@@ -2,11 +2,7 @@ using Cards;
 
 
 
- public interface IDiscardPile
-    {
-        Stack<ICard> Cards { get; }
-    }
-
+ 
 
 public class DiscardPile : IDiscardPile
     {

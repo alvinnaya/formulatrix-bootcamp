@@ -1,14 +1,6 @@
 namespace Players;
 
 
- public interface IPlayer
-    {
-        string Name { get; }
-        bool HasCalledUno { get; set; }
-    }
-
-
-
 public class Player : IPlayer
     {
         public string Name { get; private set; }

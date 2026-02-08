@@ -49,7 +49,7 @@ namespace Controller;
             _playerCards = new Dictionary<IPlayer, List<ICard>>();
             if (players != null)
             {
-                foreach (var p in players)
+                foreach (IPlayer p in players)
                     _playerCards[p] = new List<ICard>();
             }
 
@@ -64,7 +64,7 @@ namespace Controller;
     {
         Players = players;
          _playerCards = new Dictionary<IPlayer, List<ICard>>();
-        foreach (var p in Players)
+        foreach (IPlayer p in Players)
             _playerCards[p] = new List<ICard>();
 
         _currentPlayer = players.Count > 1 ? players[0] : null;
@@ -75,12 +75,12 @@ namespace Controller;
     // dan jumlah kartu yang dimiliki pemain tersebut sebagai value.
     public Dictionary<string, int> GetPlayerCardCounts()
 {
-    var result = new Dictionary<string, int>();
+    Dictionary<string, int> result = new Dictionary<string, int>();
 
     foreach (var kvp in _playerCards)
     {
-        var player = kvp.Key;
-        var cards = kvp.Value;
+         IPlayer player = kvp.Key;
+         List<ICard> cards = kvp.Value;
 
         // Nama pemain sebagai key, jumlah kartu sebagai value
         result[player.Name] = cards.Count;
@@ -98,7 +98,7 @@ namespace Controller;
 
         GameStarted?.Invoke();
         _currentPlayer = Players[0];
-        var first = Deck.Cards.Pop();
+        ICard first = Deck.Cards.Pop();
         DiscardPile.Cards.Push(first);
         _lastPlayedCard = first;
        if (first.Color.HasValue)
@@ -108,7 +108,7 @@ namespace Controller;
         else
         {
             // Wild pertama: pilih warna default/random
-            var colors = Enum.GetValues<CardColor>();
+            CardColor[] colors = Enum.GetValues<CardColor>();
             CurrentColor = colors[new Random().Next(colors.Length)];
         }
         IsGameStarted = true;
@@ -190,7 +190,7 @@ namespace Controller;
     }
     public void DrawCard(IPlayer player)
     {
-        var card = DrawFromDeck();
+        ICard card = DrawFromDeck();
         _playerCards[player].Add(card);
         CardDrawn?.Invoke(player, card);
         player.HasCalledUno = false;
@@ -344,7 +344,7 @@ private void ResolveCardEffect(ICard card)
             
         }
         
-        var card = Deck.Cards.Pop();
+        ICard card = Deck.Cards.Pop();
         return card;
     }
 
@@ -352,8 +352,8 @@ private void ResolveCardEffect(ICard card)
 // dengan memindahkan semua kartu dari tumpukan buangan ke deck. lewat push
      private void RefillDeckFromDiscard()
     {
-        var cards = DiscardPile.Cards;
-        foreach (var n in cards)
+        Stack<ICard> cards = DiscardPile.Cards;
+        foreach (ICard n in cards)
             {
                 Deck.Cards.Push(n);
             }

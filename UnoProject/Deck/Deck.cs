@@ -3,11 +3,7 @@ using Cards;
 
 namespace Deck;
 
-    public interface IDeck
-    {
-        Stack<ICard> Cards { get; }
-    }
-
+  
     public class Deck : IDeck
     {
         // HARUS Stack<ICard> sesuai interface

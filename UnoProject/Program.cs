@@ -6,21 +6,23 @@ using Deck;
 using Controller;
 using Fleck;
 using System.Text.Json;
+using Dto;
+
 
         
         //membuat game object awal saat server pertama kali dijalankan
 
-        var deck = new Deck.Deck();
+        Deck.Deck deck = new Deck.Deck();
         InitDeck(deck);
         Shuffle(deck.Cards);
-        var discardPile = new DiscardPile();
+        DiscardPile discardPile = new DiscardPile();
         //awalnya player kosong, nanti diisi pas ada command createplayer
-        var game = new GameController( new List<IPlayer>(),deck, discardPile);
+        GameController game = new GameController( new List<IPlayer>(),deck, discardPile);
 
 
         //menjalankan server websocket
         List<IWebSocketConnection> allSockets = new List<IWebSocketConnection>();
-        var server = new WebSocketServer("ws://0.0.0.0:5000");
+        WebSocketServer server = new WebSocketServer("ws://0.0.0.0:5000");
 
   
         // ini adalah event-event tambahan
@@ -69,7 +71,7 @@ using System.Text.Json;
 //fungsi untuk menangani pesan dari client
 async Task HandleMessage(IWebSocketConnection socket, string message)
     {
-        var parts = message.Split(" ");
+        string[] parts = message.Split(" ");
         switch (parts[1].ToLower())
         {     
             //command createplayer di game controller
@@ -98,7 +100,7 @@ async Task HandleMessage(IWebSocketConnection socket, string message)
                 if (int.TryParse(parts[2], out int numOfPlayers))
                 {
                     //membuat list player baru
-                    var newPlayerList =  new List<IPlayer>();
+                    List<IPlayer> newPlayerList =  new List<IPlayer>();
                     //memanipulasi list player dengan menggunakan fungsi createplayer, fungsi ini akan menambahkan player ke list sesuai jumlah yang diinput
                     CreatePlayers(numOfPlayers, newPlayerList);
                     // Console.WriteLine($"Created {numOfPlayers} players.");
@@ -136,7 +138,7 @@ async Task HandleMessage(IWebSocketConnection socket, string message)
                 
                     //this is the main problem
                 //memberikan 7 kartu ke setiap player
-                foreach (var p in game.Players)
+                foreach (IPlayer p in game.Players)
                 for (int i = 0; i < 7; i++)
                 {
                     game.DrawCard(p);
@@ -145,23 +147,7 @@ async Task HandleMessage(IWebSocketConnection socket, string message)
                 //memulai game
                 game.StartGame();
 
-                //mendapatkan state awal game untuk dikirim ke client
-                var currentPlayer = game.GetCurrentPlayer();
-                //var hand = game.GetPlayerCards(player);
-                var lastCard = game.GetLastPlayedCard();
-
-
-                //container adalah object anonim yang berisi state game
-                   var gameState = new
-                {
-                    lastCard = lastCard.ToString(),
-                    currentPlayer = game.GetCurrentPlayer().Name,
-                    allPlayers = GetPlayersCardCount(game),
-                    currentColor = game.CurrentColor.ToString(),
-                };  
-
-                //mengirim state game ke semua client 
-
+                //mengirim state game awal ke semua client
                 BroadcastGameState("game start");
 
 
@@ -181,10 +167,10 @@ async Task HandleMessage(IWebSocketConnection socket, string message)
                 }
 
                 //membuat ulang deck dan discard pile baru sebagai mekanisme reset game
-                var newDeck = new Deck.Deck();
+                Deck.Deck newDeck = new Deck.Deck();
                 InitDeck(newDeck);
                 Shuffle(newDeck.Cards);
-                var newDiscard = new DiscardPile();
+                IDiscardPile newDiscard = new DiscardPile();
 
                 //mereset game dengan deck dan discard pile yang baru
                 game.ResetGame(newDeck, newDiscard);
@@ -204,17 +190,17 @@ async Task HandleMessage(IWebSocketConnection socket, string message)
                 }
 
                 //mendapatkan kartu terakhir yang dimainkan
-                var lastCard = game.GetLastPlayedCard();
+                ICard lastCard = game.GetLastPlayedCard();
                 //membuat object anonim yang berisi state game saat ini, 
                 //yang berisi info kartu terakhir, giliran player saat ini, jumlah kartu setiap player, warna saat ini, dan status akhir game
-                 var gameState = new
+                 GameStateDTO gameState = new GameStateDTO
                 {
-                    lastCard = lastCard.ToString(),
-                    currentPlayer = game.GetCurrentPlayer().Name,
-                    allPlayers = GetPlayersCardCount(game),
-                    currentColor = game.CurrentColor.ToString(),
-                    gameEnd = game.IsGameOver,
-                    isGameStarted= game.IsGameStarted
+                    LastCard = lastCard.ToString(),
+                    CurrentPlayer = game.GetCurrentPlayer().Name,
+                    AllPlayers = GetPlayersCardCount(game),
+                    CurrentColor = game.CurrentColor.ToString(),
+                    GameEnd = game.IsGameOver,
+                    IsGameStarted = game.IsGameStarted
                 };
 
                 SendJson(socket, "gameState", gameState);
@@ -232,7 +218,7 @@ async Task HandleMessage(IWebSocketConnection socket, string message)
                 }
 
                 //mendapatakan player berdasarkan nama yang dikirim dari client
-                var player = game.GetPlayerByName(parts[0]);
+                IPlayer player = game.GetPlayerByName(parts[0]);
                 //filter jika player tidak ditemukan
                 if(player == null)
                 {
@@ -241,8 +227,8 @@ async Task HandleMessage(IWebSocketConnection socket, string message)
                 }
 
                 //mendapatkan kartu yang dimiliki player
-                var hand = game.GetPlayerCards(player);
-                var lastCard = game.GetLastPlayedCard();
+                IReadOnlyList<ICard> hand = game.GetPlayerCards(player);
+                ICard lastCard = game.GetLastPlayedCard();
 
                 // membuat object anonim yang berisi state player yang diminta
                 var state = new
@@ -269,7 +255,7 @@ async Task HandleMessage(IWebSocketConnection socket, string message)
 
 
                     //mendapatkan player yang sedang mendapat giliran
-                    var currentPlayer = game.GetCurrentPlayer();
+                    IPlayer currentPlayer = game.GetCurrentPlayer();
                     //filter untuk memastikan player yang meminta draw adalah player yang sedang mendapat giliran
                     if(currentPlayer.Name == parts[0])
                     {   
@@ -278,11 +264,11 @@ async Task HandleMessage(IWebSocketConnection socket, string message)
                         //mengakhiri giliran player saat ini
                         game.Nexturn();
                         //mendapatkan kartu yang dimiliki player saat ini sebelum draw
-                        var hand = game.GetPlayerCards(currentPlayer);
+                        IReadOnlyList<ICard> hand = game.GetPlayerCards(currentPlayer);
                         //mendapatkan kartu terakhir yang dimainkan setelah draw
-                        var lastCard = game.GetLastPlayedCard();
+                        ICard lastCard = game.GetLastPlayedCard();
                         //mendapatkan player selanjutnya setelah giliran player saat ini berakhir
-                        var nextPlayer = game.GetCurrentPlayer();
+                        IPlayer nextPlayer = game.GetCurrentPlayer();
 
                         //membuat object anonim yang berisi state player saat ini setelah draw
                      var playerState = new
@@ -323,18 +309,18 @@ async Task HandleMessage(IWebSocketConnection socket, string message)
                 }
                 
                     //mendapatkan player yang sedang mendapat giliran
-                    var currentPlayer = game.GetCurrentPlayer();
+                    IPlayer currentPlayer = game.GetCurrentPlayer();
                     //mendapatkan kartu yang dimiliki player saat ini
-                    var hand = game.GetPlayerCards(currentPlayer);
+                    IReadOnlyList<ICard> hand = game.GetPlayerCards(currentPlayer);
                     //mengambil index kartu yang akan dimainkan dari input message
-                    var idx = int.Parse(parts[2]);
+                    Int32 idx = int.Parse(parts[2]);
                     //mmendapatkan kartu terakhir yang dimainkan sebelum play card
-                    var lastCard = game.GetLastPlayedCard();
+                    ICard lastCard = game.GetLastPlayedCard();
 
                     //filter untuk memastikan player yang meminta play adalah player yang sedang mendapat giliran
                     if(currentPlayer.Name == parts[0])
                     {
-                         var card = hand[idx];
+                         ICard card = hand[idx];
                     //memastikan kartu yang dimainkan valid sesuai aturan uno
                     if (game.IsCardValid(card))
                     {
@@ -368,18 +354,14 @@ async Task HandleMessage(IWebSocketConnection socket, string message)
                                 hand = BuildHandState(game.GetPlayerCards(currentPlayer))
                             };
 
-                             var gameStateUno = new
-                            {
-                                lastCard = game.GetLastPlayedCard().ToString(),
-                                currentPlayer = currentPlayer.Name,
-                                allPlayers = GetPlayersCardCount(game),
-                                action = $"playcard {card.ToString()}",
-                                currentColor = game.CurrentColor.ToString(),
-                            };
+                           
+                             //mengirim GameState ke semua client yang isinya adalah 
+                        
                             //player state dikirim ke client yang bersangkutan
                             SendJson(socket, "playerState", playerStateUno);
-                            //game state dikirim ke semua client
-                            BroadcastJson("gameState", gameStateUno);
+                                         
+                            //mengirim GameState ke semua client yang isinya adalah 
+                            BroadcastGameState($"{currentPlayer} played {card} ");
 
                             //delay 3 detik
                              await Task.Delay(3000);
@@ -389,7 +371,7 @@ async Task HandleMessage(IWebSocketConnection socket, string message)
                         //melanjutkan giliran ke player selanjutnya lalu mengirim state player dan game
                         //setelah play card dan giliran dilanjutkan
                         game.Nexturn();
-                        var nextPlayer = game.GetCurrentPlayer();
+                        IPlayer nextPlayer = game.GetCurrentPlayer();
                          var playerState = new
                         {
                             lastCard = game.GetLastPlayedCard().ToString(),
@@ -423,28 +405,16 @@ async Task HandleMessage(IWebSocketConnection socket, string message)
                     break;
                 }
                     //mendapatkan nama player yang memanggil uno dari input message
-                   var playerName = parts[0];
+                   string playerName = parts[0];
                    //mendapatkan object player berdasarkan nama yang dikirim
-                   var currentPlayer = game.GetPlayerByName(playerName);
+                   IPlayer currentPlayer = game.GetPlayerByName(playerName);
                     //memanggil fungsi calluno di game controller untuk player yang ada di message
                       game.CallUno(currentPlayer);
                       //mengirim info ke semua client bahwa player ini telah memanggil uno
                         BroadcastJson("info", new { message = $"{currentPlayer.Name} called UNO!" } );
 
-                        //mengirim UnoState ke semua client yang isinya adalah 
-                        // info player yang memanggil uno dan warna saat ini
-                         var gameState = new
-                        {
-                            
-                            currentPlayer = currentPlayer.Name,
-                            UnoCalled = true,
-                            action = $"called uno",
-                            currentColor = game.CurrentColor.ToString(),
-                            
-                        };
-                        BroadcastJson("UnoState", gameState);
-            
-                    
+                         //mengirim GameState ke semua client yang isinya adalah 
+                        BroadcastGameState($"{currentPlayer} call uno");
                   
                    
                 
@@ -464,19 +434,19 @@ void BroadcastGameState(string action)
         {
             if (!game.IsGameStarted) return;
 
-            var lastCard = game.GetLastPlayedCard();
-            var gameState = new
+            ICard lastCard = game.GetLastPlayedCard();
+            GameStateDTO gameState = new GameStateDTO   
             {
-                lastCard = lastCard?.ToString() ?? string.Empty,
-                currentPlayer = game.GetCurrentPlayer().Name,
+                LastCard = lastCard?.ToString() ?? string.Empty,
+                CurrentPlayer = game.GetCurrentPlayer().Name,
                 //mendapatkan jumlah kartu setiap player
-                allPlayers = GetPlayersCardCount(game),
+                AllPlayers = GetPlayersCardCount(game),
                 //action yang dilakukan pemain
-                action = action,
+                Action   = action,
                 //mendapatkan informasi warna kartu saat ini
-                currentColor = game.CurrentColor.ToString(),
+                CurrentColor = game.CurrentColor.ToString(),
                 //status apakah game telah berakhir
-                gameEnd = game.IsGameOver,
+                GameEnd = game.IsGameOver,
 
             };
 
@@ -485,7 +455,7 @@ void BroadcastGameState(string action)
 //fungsi untuk mengirim pesan ke semua client
 void Broadcast(string message)
 {
-    foreach (var s in allSockets.ToList()) // ToList() biar aman kalau ada disconnect
+    foreach (IWebSocketConnection s in allSockets.ToList()) // ToList() biar aman kalau ada disconnect
     {
         s.Send(message);
     }
@@ -504,17 +474,17 @@ void BroadcastJson(string type, object data)
 }
 
 //membuat list object yang berisi nama player dan jumlah kartu yang dimilikinya    
-List<object> GetPlayersCardCount(GameController game)
+List<PlayerCardCountDTO> GetPlayersCardCount(GameController game)
 {
     // hitung jumlah kartu player dari fungsi yang sudah ada di game object
     var playerCounts = game.GetPlayerCardCounts();
 
     // Buat list object, bukan JSON string
-    var players = playerCounts.Select(kvp => new
+    List<PlayerCardCountDTO> players = playerCounts.Select(kvp => new PlayerCardCountDTO
     {
-        name = kvp.Key,
-        cardCount = kvp.Value
-    }).ToList<object>(); // cast ke object supaya bisa digabung dengan object anonim lain
+        Name = kvp.Key,
+        CardCount = kvp.Value
+    }).ToList(); // cast ke object supaya bisa digabung dengan object anonim lain
 
     return players;
 }
@@ -534,7 +504,7 @@ List<object> BuildHandState(IReadOnlyList<ICard> hand)
 }
 
 //menambahkan kartu-kartu ke deck
-void InitDeck(Deck.Deck deck)
+void InitDeck(IDeck deck)
     {
         foreach (CardColor color in Enum.GetValues<CardColor>())
         {
@@ -562,9 +532,9 @@ void InitDeck(Deck.Deck deck)
 void Shuffle<T>(Stack<T> stack)
     {
         // memindahkan elemen Stack ke List untuk diacak
-        var list = new List<T>(stack);
+        List<T> list = new List<T>(stack);
         // membangun ulang Stack dengan urutan acak
-        var rnd = new Random();
+        Random rnd = new Random();
         stack.Clear();
 
         while (list.Count > 0)
