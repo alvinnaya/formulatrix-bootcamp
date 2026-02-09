@@ -1,6 +1,6 @@
 namespace Dto;
 
-class PlayerStateDTO
+public class PlayerStateDTO
 {
     public string LastCard { get; set; }
     public string Player { get; set; }

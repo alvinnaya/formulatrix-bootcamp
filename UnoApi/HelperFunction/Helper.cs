@@ -22,28 +22,6 @@ static public void CreatePlayers(int jumlah, List<IPlayer> players)
     }
 
 
-static public GameStateDTO BroadcastGameState(GameController game, string action)
-{
-
-    var lastCard = game.GetLastPlayedCard();
-
-    GameStateDTO gameState = new GameStateDTO
-    {
-        LastCard = lastCard?.ToString() ?? "",
-        CurrentPlayer = game.GetCurrentPlayer().Name,
-        AllPlayers = GetPlayerCardCounts(game),
-        Action = action,
-        CurrentColor = game.CurrentColor.ToString(),
-        GameEnd = game.IsGameOver
-    };
-
-    return gameState;
-
-   
-}
-
-
-
 static public List<PlayerCardCountDTO> GetPlayerCardCounts(GameController game)
 {
     // hitung jumlah kartu player dari fungsi yang sudah ada di game object
@@ -120,26 +98,46 @@ static public void Shuffle<T>(Stack<T> stack)
             }
         }
 
-
-static public void  BroadcastInfo(object payload, IHubContext<GameHub> hub)
+public static Task BroadcastInfo(object payload, IHubContext<GameHub> hub)
 {
-     hub.Clients.All.SendAsync("info", payload);
+    return hub.Clients.All.SendAsync("info", payload);
 }
 
 
-
-static public void Broadcast(string message, IHubContext<GameHub> hub)
+public static Task Broadcast(string message, IHubContext<GameHub> hub)
 {
-      hub.Clients.All.SendAsync("info", message);
+    return hub.Clients.All.SendAsync("message", message);
 }
+
 
 
 static public void BroadcastJson(string type, object data,IHubContext<GameHub> hub)
 {
-    var payload = new { type, data };
-    Broadcast(JsonSerializer.Serialize(payload),hub);
+    
+     hub.Clients.All.SendAsync(type, data);
 }
 
+
+
+static public GameStateDTO BroadcastGameState(GameController game, string action)
+{
+
+    var lastCard = game.GetLastPlayedCard();
+
+    GameStateDTO gameState = new GameStateDTO
+    {
+        LastCard = lastCard?.ToString() ?? "",
+        CurrentPlayer = game.GetCurrentPlayer().Name,
+        AllPlayers = GetPlayerCardCounts(game),
+        Action = action,
+        CurrentColor = game.CurrentColor.ToString(),
+        GameEnd = game.IsGameOver
+    };
+
+    return gameState;
+
+   
+}
 
 
 

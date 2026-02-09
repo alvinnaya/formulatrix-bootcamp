@@ -28,11 +28,11 @@ namespace Controllers;
         }
 
         [HttpPost("createplayer")]
-        public IActionResult CreatePlayer([FromQuery] string prefix, [FromQuery] int count)
+        public IActionResult CreatePlayer( [FromQuery] int count)
         {
           
             if (game.IsGameStarted) return Ok(new { message = "Game already started" });
-
+            Console.WriteLine(count);
             List<IPlayer> newPlayers = new();
             Helper.CreatePlayers(count, newPlayers);
             game.ChangePlayers(newPlayers);
@@ -139,8 +139,13 @@ namespace Controllers;
 
             if (hand.Count == 1)
             {
+                PlayerStateDTO PlayerState = new PlayerStateDTO{
+                    LastCard = game.GetLastPlayedCard()?.ToString(), 
+                    Player = current.Name, 
+                    Hand = Helper.BuildHandState(game.GetPlayerCards(current)) 
+                };
                 await hub.Clients.Client(connectionId)
-                    .SendAsync("playerState", new { lastCard = game.GetLastPlayedCard()?.ToString(), currentPlayer = current.Name, hand = Helper.BuildHandState(game.GetPlayerCards(current)) });
+                    .SendAsync("PlayerState", PlayerState );
                 
                 GameStateDTO gameStateBefore =  Helper.BroadcastGameState(game,$"{current} played {card}");
                 Helper.BroadcastJson("GameState",gameStateBefore,hub);
@@ -148,9 +153,15 @@ namespace Controllers;
             }
 
             game.Nexturn();
+            PlayerStateDTO PlayerStateAfter = new PlayerStateDTO
+                {
+                    LastCard = game.GetLastPlayedCard()?.ToString(), 
+                    Player = current.Name, 
+                    Hand = Helper.BuildHandState(game.GetPlayerCards(current)),
+                };
 
             await hub.Clients.Client(connectionId)
-                .SendAsync("playerState", new { lastCard = game.GetLastPlayedCard()?.ToString(), currentPlayer = current.Name, hand = Helper.BuildHandState(game.GetPlayerCards(current)) });
+                .SendAsync("PlayerState", PlayerStateAfter);
 
              GameStateDTO gameStateAfter =  Helper.BroadcastGameState(game,$"{current} played {card}");
                 Helper.BroadcastJson("GameState",gameStateAfter,hub);
@@ -165,8 +176,9 @@ namespace Controllers;
             var p = game.GetPlayerByName(player);
             game.CallUno(p);
 
-            // BroadcastJson("info", new { message = $"{p.Name} called UNO!" });
-            // BroadcastGameState($"{p} call uno");
+            Helper.BroadcastJson("info", new { message = $"{p.Name} called UNO!" },hub);
+            // GameStateDTO gameState =  Helper.BroadcastGameState(game, $"{p} call uno");
+            // Helper.BroadcastJson(,hub)
             return Ok(new { message = $"{p.Name} called UNO!" });
         }
     
