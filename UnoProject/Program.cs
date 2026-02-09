@@ -46,7 +46,7 @@ using Microsoft.AspNetCore.SignalR;
         // WebSocketServer server = new WebSocketServer("ws://0.0.0.0:5000");
         var app = builder.Build();
         app.UseCors();
-        var hub = app.Services.GetRequiredService<IHubContext<Hub>>();
+        IHubContext<GameHub> hub = null!;
 
         
 
@@ -89,9 +89,9 @@ using Microsoft.AspNetCore.SignalR;
       
 
 
-app.MapPost("/game/createplayer", (string prefix, int count) =>
+app.MapPost("/game/createplayer", (int count) =>
 {
-    if (prefix != "Game") return Results.Ok();
+   
     if (game.IsGameStarted) return Results.Ok();
 
     List<IPlayer> newPlayers = new();
@@ -191,13 +191,13 @@ app.MapPost("/game/play", async (string player, int idx, string? color) =>
 
     if (hand.Count == 1)
     {
-        await hub.Clients.User(current.Name)
-        .SendAsync("playerState", new
-        {
-            lastCard = game.GetLastPlayedCard()?.ToString(),
-            currentPlayer = current.Name,
-            hand = BuildHandState(game.GetPlayerCards(current))
-        });
+        // await hub.Clients.User(current.Name)
+        // .SendAsync("playerState", new
+        // {
+        //     lastCard = game.GetLastPlayedCard()?.ToString(),
+        //     currentPlayer = current.Name,
+        //     hand = BuildHandState(game.GetPlayerCards(current))
+        // });
 
         BroadcastGameState($"{current} played {card}");
         await Task.Delay(3000);
@@ -233,6 +233,12 @@ app.MapPost("/game/uno", (string player) =>
 
 // app.MapHub<Hub>("/ws");
 app.MapHub<GameHub>("/ws");
+
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    // Ambil hub context dari DI
+    hub = app.Services.GetRequiredService<IHubContext<GameHub>>();
+});
 
 
 
@@ -604,6 +610,9 @@ app.Run();
 //     }
 
 
+
+
+
 //fungsi untuk mengirim state game saat ini ke semua client
 void BroadcastGameState(string action)
 {
@@ -733,111 +742,11 @@ void CreatePlayers(int jumlah, List<IPlayer> players)
        
     }
 
-// void DrawCard(IPlayer player)
-// {
-//         game.DrawCard(player);
-//         game.Nexturn();
-// }
 
-
-
-
-         
-        
-   
-
-        // game start and events
-       
-
-        // ===== EVENTS =====
-        //game.GameStarted += () => Console.WriteLine("Game Started");
-        // game.TurnStarted += p => Console.WriteLine($"\nTurn: {p}");
-        // game.CardPlayed += (p, c) => Console.WriteLine($"{p} played {c}");
-        // game.CardDrawn += (p, c) => Console.WriteLine($"{p} drew {c}");
-        // game.GameEnded += p => Console.WriteLine($"\nWINNER: {p}");
-        // foreach (var p in players)
-        //     for (int i = 0; i < 7; i++)
-        //     {
-        //         game.DrawCard(p);
-        //     }
-      
-        // game.StartGame();
-        
-        // Console.WriteLine($"First card: {game.GetLastPlayedCard()}");
-
-        
-
-        // ===== GAME LOOP =====
-        // while (!game.IsGameOver)
-        // {
-
-        //     var player = game.GetCurrentPlayer();
-        //     var hand = game.GetPlayerCards(player);
-        //     Console.WriteLine($"Last card: {game.GetLastPlayedCard()}");
-        //     Console.WriteLine($"\n{player}'s turn");
-
-        //     Console.WriteLine("\nHand:");
-        //     for (int i = 0; i < hand.Count; i++)
-        //         Console.WriteLine($"{i}. {hand[i]}");
-
-        //     Console.Write("Index kartu / d (draw): ");
-        //     var input = Console.ReadLine();
-
-        //     if (input == "d")
-        //     {
-        //         DrawCard(player);
-             
-                
-        //     }
-
-        //     if (int.TryParse(input, out int idx) &&
-        //         idx >= 0 && idx < hand.Count)
-        //     {
-        //         var card = hand[idx];
-        //         if (game.IsCardValid(card))
-        //         {
-        //             game.PlayCard(player, card);
-
-        //             if (hand.Count == 1)
-        //             {
-        //                 Console.Write("UNO? (y/n): ");
-        //                 if (Console.ReadLine() == "y")
-        //                     game.CallUno(player);
-        //             }
-        //             game.Nexturn();
-        //         }
-        //         else
-        //         {
-        //             Console.WriteLine("Invalid card");
-        //         }
-        //     }
-        // }
-    
-
-    // ===== HELPERS =====
-public static class Globals
-{
-    public static Dictionary<string, string> PlayerConnections = new();
-}
 
 public class GameHub : Hub
 {
-    public override Task OnConnectedAsync()
-    {
-        var playerName = Context.GetHttpContext()?.Request.Query["player"];
-        if (!string.IsNullOrEmpty(playerName))
-        {
-            Globals.PlayerConnections[playerName!] = Context.ConnectionId;
-        }
-        return base.OnConnectedAsync();
-    }
-
-    public override Task OnDisconnectedAsync(Exception? exception)
-    {
-        var item = Globals.PlayerConnections.FirstOrDefault(x => x.Value == Context.ConnectionId);
-        if (!string.IsNullOrEmpty(item.Key))
-            Globals.PlayerConnections.Remove(item.Key);
-
-        return base.OnDisconnectedAsync(exception);
-    }
+    
 }
+
+
