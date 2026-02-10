@@ -10,6 +10,7 @@ using Cards;
 using Dto;
 
 
+
 namespace Controllers;
 
     [ApiController]
@@ -61,7 +62,7 @@ namespace Controllers;
         {
             if (!game.IsGameStarted) return Ok(new { message = "Game not started yet" });
             // BroadcastGameState("state");
-            GameStateDTO state = Helper.BroadcastGameState(game, "state");
+            GameStateDTO state = Helper.BroadcastGameState(game, "GameState");
             return Ok(state);
         }
 

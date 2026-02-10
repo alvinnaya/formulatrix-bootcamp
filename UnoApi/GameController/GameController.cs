@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using Cards;
 using Players;
 using Deck;
+using Serilog;
+using Serilog.Formatting.Json;
 
 namespace GameControllerNamespace;
 
@@ -42,9 +44,11 @@ namespace GameControllerNamespace;
         //sementara List player boleh kosong (null)
         public GameController(List<IPlayer>? players, IDeck deck, IDiscardPile discardPile)
         {
+           
             Players = players;
             Deck = deck;
             DiscardPile = discardPile;
+            
 
             _playerCards = new Dictionary<IPlayer, List<ICard>>();
             if (players != null)
@@ -56,6 +60,13 @@ namespace GameControllerNamespace;
             _currentPlayer = players != null && players.Count > 0 ? players[0] : null;
             Direction = Direction.Clockwise;
             IsGameStarted = false;
+
+            Log.Debug(
+                "GameController created with {PlayerCount} players",
+                players?.Count ?? 0
+            );
+
+            
         }
 
         //mengganti daftar pemain dalam permainan dengan daftar pemain baru yang diberikan sebagai parameter.
@@ -68,6 +79,15 @@ namespace GameControllerNamespace;
             _playerCards[p] = new List<ICard>();
 
         _currentPlayer = players.Count > 1 ? players[0] : null;
+
+        Log.Information(
+            "Players changed. New player count: {PlayerCount}",
+            players.Count
+        );
+        Log.Debug(
+            "Players changed to {@Players}",
+            players.Select(p => p.Name)
+        );
     }
 
 
@@ -112,6 +132,13 @@ namespace GameControllerNamespace;
             CurrentColor = colors[new Random().Next(colors.Length)];
         }
         IsGameStarted = true;
+
+        Log.Information(
+            "Game started. FirstPlayer={PlayerName}, FirstCard={CardType}, Color={Color}",
+            _currentPlayer.Name,
+            first.Type,
+            CurrentColor
+        );
    
     }
 
@@ -121,6 +148,10 @@ namespace GameControllerNamespace;
         if (_playerCards[player].Count == 1)
         {
             player.HasCalledUno = true;
+            Log.Information(
+            "UNO called by {Player}",
+            player.Name
+        );
             UnoCalled?.Invoke(player);
         }
     }
@@ -129,8 +160,15 @@ namespace GameControllerNamespace;
 //ia akan mengecek apakah pemain mendpatkan hukuman uno atau tidak ketika kartunya sisa satu
     public void Nexturn()
     {
+        Log.Debug(
+            "Turn started for {Player}",
+            _currentPlayer.Name
+        );
         if (IsGameOver) return;
-        if (_currentPlayer == null) return;
+        if (_currentPlayer == null)
+        {
+            return;
+        }
         //memanggil event TurnStarted sebelum giliran dimulai
         TurnStarted?.Invoke(_currentPlayer);
         CheckUno(_currentPlayer);
@@ -145,6 +183,11 @@ namespace GameControllerNamespace;
         TurnEnded?.Invoke(_currentPlayer);
         // if (!IsGameOver)
         //     PlayTurn();
+        Log.Debug(
+            "Turn ended. NextPlayer={NextPlayer}",
+            _currentPlayer.Name
+        );
+
     }
 
 //fungsi untuk memainkan kartu oleh pemain tertentu.
@@ -166,6 +209,12 @@ namespace GameControllerNamespace;
 //setelah memainkan kartu, status HasCalledUno pemain direset menjadi false
             player.HasCalledUno = false;
 //jika pemain kehabisan kartu setelah memainkan kartu, maka permainan berakhir
+            Log.Information(
+                "Player {Player} plays card {CardType} {CardColor}",
+                player.Name,
+                card.Type,
+                card.Color
+            );
             if (_playerCards[player].Count == 0)
             {
                 //memanggil fungsi EndGame untuk mengakhiri permainan
@@ -175,8 +224,18 @@ namespace GameControllerNamespace;
 
 //memanggil fungsi untuk menyelesaikan efek dari kartu yang dimainkan
             ResolveCardEffect(card);
-          
-            
+
+
+        }
+        else
+        {
+             Log.Warning(
+                "Invalid card play. Player={Player}, Card={CardType}, CurrentColor={CurrentColor}, LastCard={LastCard}",
+                player.Name,
+                card.Type,
+                CurrentColor,
+                _lastPlayedCard?.Type
+            );
         }
 
         
@@ -194,6 +253,13 @@ namespace GameControllerNamespace;
         _playerCards[player].Add(card);
         CardDrawn?.Invoke(player, card);
         player.HasCalledUno = false;
+
+        Log.Debug(
+                "Player {Player} draws card {CardType}",
+                player.Name,
+                card.Type
+            );
+
       
     }
 
@@ -301,6 +367,10 @@ private void ResolveCardEffect(ICard card)
         //untuk tipe kartu reverse maka akan membalik arah giliran permainan
         case CardType.Reverse:
             ReverseDirection();
+            Log.Information(
+                "Direction reversed. NewDirection={Direction}",
+                Direction
+            );
 
             // aturan UNO: 2 player = skip
             if (Players != null && Players.Count == 2)
@@ -312,6 +382,13 @@ private void ResolveCardEffect(ICard card)
 
             DrawCard(GetNextPlayer(1));
             DrawCard(GetNextPlayer(1));
+            Log.Information(
+                "Player {TargetPlayer} draws {DrawCount} cards due to {CardType}",
+                GetNextPlayer(1).Name,
+                2,
+                card.Type
+            );
+
             break;
         //untuk tipe kartu wild draw four maka pemain berikutnya harus mengambil empat kartu dari deck
         case CardType.WildDrawFour:
@@ -320,12 +397,21 @@ private void ResolveCardEffect(ICard card)
             DrawCard(GetNextPlayer(1));
             DrawCard(GetNextPlayer(1));
             DrawCard(GetNextPlayer(1));
+
+            Log.Information(
+                "Player {TargetPlayer} draws {DrawCount} cards due to {CardType}",
+                GetNextPlayer(1).Name,
+                2,
+                card.Type
+            );
+
        
             break;
 
         //untuk tipe kartu wild dan tipe lainnya tidak memiliki efek tambahan 
         //karena efek sudah ditentukan di bagian request untuk merubah warna
         case CardType.Wild:
+
         default:
             // number card & wild tanpa efek tambahan
             break;
@@ -335,7 +421,7 @@ private void ResolveCardEffect(ICard card)
 
 //fungsi untuk mengambil kartu dari deck.
 //jika deck kosong, maka deck akan diisi ulang dari Discard Pile terlebih dahulu.
-    private ICard DrawFromDeck()
+private ICard DrawFromDeck()
     {
 
         if(Deck.Cards.Count == 0)
@@ -350,7 +436,7 @@ private void ResolveCardEffect(ICard card)
 
 //fungsi untuk mengisi ulang deck dari tumpukan buangan.
 // dengan memindahkan semua kartu dari tumpukan buangan ke deck. lewat push
-     private void RefillDeckFromDiscard()
+private void RefillDeckFromDiscard()
     {
         Stack<ICard> cards = DiscardPile.Cards;
         foreach (ICard n in cards)
@@ -362,7 +448,7 @@ private void ResolveCardEffect(ICard card)
 
 
 //fungsi untuk memeriksa apakah pemain bisa mendapatkan hukuman UNO atau tidak.
-    private void CheckUno(IPlayer player)
+private void CheckUno(IPlayer player)
 {
     // Jika player sebelumnya punya 1 kartu dan TIDAK bilang UNO
     if (_lastPlayer != null &&
@@ -370,12 +456,17 @@ private void ResolveCardEffect(ICard card)
         !_lastPlayer.HasCalledUno)
     {
         ApplyUnoPenalty(_lastPlayer);
+        Log.Warning(
+            "UNO penalty applied to {Player}",
+            player.Name
+        );
+
     }
 }
 
 
 //fungsi untuk menerapkan hukuman UNO kepada pemain tertentu.
-    private void ApplyUnoPenalty(IPlayer player)
+private void ApplyUnoPenalty(IPlayer player)
     {
         // Draw 2 cards as penalty
         DrawCard(player);
@@ -384,9 +475,14 @@ private void ResolveCardEffect(ICard card)
     }
 
 //fungsi untuk mengakhiri permainan dengan menentukan pemenang. dan membuat IsGameOver menjadi true.
-    private void EndGame(IPlayer winner)
+private void EndGame(IPlayer winner)
     {
         IsGameOver = true;
+        Log.Information(
+            "Game ended. Winner={Winner}",
+            winner.Name
+        );
+
         //memanggil event GameEnded dengan pemain pemenang sebagai parameter
         GameEnded?.Invoke(winner);
     }
@@ -395,10 +491,13 @@ private void ResolveCardEffect(ICard card)
 //fungsi untuk mereset status permainan ke kondisi awal.
 // sehingga permainan dapat dimulai ulang dengan deck dan discard pile yang baru.
 // seolah-olah game controller baru dibuat.
-    public void ResetGame(IDeck deck, IDiscardPile discardPile)
+public void ResetGame(IDeck deck, IDiscardPile discardPile)
     {
         Deck = deck;
         DiscardPile = discardPile;
+
+        Log.Information("Game reset");
+
 
         Players = null;
         _playerCards = new Dictionary<IPlayer, List<ICard>>();

@@ -7,6 +7,8 @@ using GameControllerNamespace;
 using Microsoft.AspNetCore.SignalR;
 using Controllers;
 using System.Text.Json;
+using Serilog;
+using Serilog.Formatting.Json;
 
 namespace helperFunction;
 static public class Helper
@@ -76,6 +78,10 @@ static public void InitDeck(IDeck deck)
 
         deck.Cards.Push(new Card(CardType.Wild));
         deck.Cards.Push(new Card(CardType.WildDrawFour));
+        Log.Debug(
+            "Deck initialized. TotalCards={CardCount}",
+            deck.Cards.Count
+        );
     }
 
 //mengacak urutan kartu di deck
@@ -96,10 +102,19 @@ static public void Shuffle<T>(Stack<T> stack)
                 //menghapus elemen yang sudah dipindahkan dari list
                 list.RemoveAt(i);
             }
+            Log.Debug(
+                "Deck shuffled. CardCount={CardCount}",
+                stack.Count
+            );
+
         }
 
 public static Task BroadcastInfo(object payload, IHubContext<GameHub> hub)
 {
+     Log.Debug(
+        "Broadcast info sent. PayloadType={PayloadType}",
+        payload.GetType().Name
+    );
     return hub.Clients.All.SendAsync("info", payload);
 }
 
@@ -113,6 +128,11 @@ public static Task Broadcast(string message, IHubContext<GameHub> hub)
 
 static public void BroadcastJson(string type, object data,IHubContext<GameHub> hub)
 {
+    Log.Debug(
+        "Broadcast JSON. Type={Type}, DataType={DataType}",
+        type,
+        data.GetType().Name
+    );
     
      hub.Clients.All.SendAsync(type, data);
 }
@@ -133,6 +153,8 @@ static public GameStateDTO BroadcastGameState(GameController game, string action
         CurrentColor = game.CurrentColor.ToString(),
         GameEnd = game.IsGameOver
     };
+
+    
 
     return gameState;
 

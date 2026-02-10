@@ -9,14 +9,25 @@ using Dto;
 using Microsoft.AspNetCore.SignalR;
 using GameControllerNamespace;
 using helperFunction;
+using Serilog;
+using Serilog.Formatting.Json;
 
+        Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Information()
+                .WriteTo.Console(new JsonFormatter())
+                .WriteTo.File(
+                new JsonFormatter(),
+                "logs/app.json",
+                rollingInterval: RollingInterval.Day)
+                .CreateLogger();
 
+        Log.Information("Aplikasi dimulai");
 
         Deck.Deck deck = new Deck.Deck();
         Helper.InitDeck(deck);
         Helper.Shuffle(deck.Cards);
         DiscardPile discardPile = new DiscardPile();
-    
+
         //awalnya player kosong, nanti diisi pas ada command createplayer
         GameController game = new GameController( new List<IPlayer>(),deck, discardPile);
 
@@ -24,6 +35,8 @@ using helperFunction;
         builder.Services.AddControllers();
         builder.Services.AddSignalR();
         builder.Services.AddSingleton<GameController>(game);
+
+        Log.Information("Aplikasi telah membuat game object awal");
 
         builder.Services.AddCors(options =>
         {
@@ -33,6 +46,8 @@ using helperFunction;
                 .AllowAnyMethod()
                 .AllowCredentials());
         });
+
+        
 
         var app = builder.Build();
 
