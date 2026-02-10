@@ -297,4 +297,258 @@ public class Tests
         Assert.That(result, Is.Null);
     }
 
+//drawCard
+    [Test]
+    public void DrawCard_PlayerDrawsCard_AddCardToHand()
+{
+    // Arrange
+    var player = new Player("Player1");
+    _game.ChangePlayers(new List<IPlayer> { player });
+
+    int beforeCount = _game.GetPlayerCards(player).Count;
+
+    // Act
+    _game.DrawCard(player);
+
+    // Assert
+    Assert.That(
+        _game.GetPlayerCards(player).Count,
+        Is.EqualTo(beforeCount + 1)
+    );
+}
+
+    [Test]
+    public void DrawCard_PlayerNotRegistered_ThrowsKeyNotFoundException()
+    {
+        // Arrange
+        var registeredPlayer = new Player("Player1");
+        var unregisteredPlayer = new Player("PlayerX");
+
+        _game.ChangePlayers(new List<IPlayer> { registeredPlayer });
+
+        // Act & Assert
+        Assert.That(
+            () => _game.DrawCard(unregisteredPlayer),
+            Throws.TypeOf<KeyNotFoundException>()
+        );
+    }
+
+
+    [Test]
+    public void GetLastPlayedCard_AfterPlayCard_ReturnsLastPlayedCard()
+{
+    // Arrange
+    var player1 = new Player("Player1");
+    var player2 = new Player("Player2");
+
+    _game.ChangePlayers(new List<IPlayer> { player1, player2 });
+    _game.StartGame();
+
+    _game.DrawCard(player1);
+    var card = _game.GetPlayerCards(player1).First();
+
+    // Act
+    _game.PlayCard(player1, card);
+    var result = _game.GetLastPlayedCard();
+
+    // Assert
+    Assert.That(result, Is.EqualTo(card));
+}
+
+    [Test]
+    public void GetLastPlayedCard_NoCardPlayed_ReturnsNull()
+    {
+        // Arrange
+        _game.ChangePlayers(new List<IPlayer>
+        {
+            new Player("Player1"),
+            new Player("Player2")
+        });
+
+        // Act
+        var result = _game.GetLastPlayedCard();
+
+        // Assert
+        Assert.That(result, Is.Null);
+    }
+
+    [Test]
+public void GetLastPlayer_AfterPlayCard_ReturnsLastPlayer()
+{
+    // Arrange
+    var player1 = new Player("Player1");
+    var player2 = new Player("Player2");
+
+    _game.ChangePlayers(new List<IPlayer> { player1, player2 });
+    _game.StartGame();
+
+    _game.DrawCard(player1);
+    var card = _game.GetPlayerCards(player1).First();
+
+    // Act
+    _game.PlayCard(player1, card);
+    var result = _game.GetLastPlayer();
+
+    // Assert
+    Assert.That(result, Is.EqualTo(player1));
+}
+
+[Test]
+public void GetLastPlayer_NoCardPlayed_ReturnsNull()
+{
+    // Arrange
+    _game.ChangePlayers(new List<IPlayer>
+    {
+        new Player("Player1"),
+        new Player("Player2")
+    });
+
+    // Act
+    var result = _game.GetLastPlayer();
+
+    // Assert
+    Assert.That(result, Is.Null);
+}
+
+[Test]
+public void GetCurrentPlayer_PlayersInitialized_ReturnsFirstPlayer()
+{
+    // Arrange
+    var player1 = new Player("Player1");
+    var player2 = new Player("Player2");
+
+    _game.ChangePlayers(new List<IPlayer> { player1, player2 });
+
+    // Act
+    var result = _game.GetCurrentPlayer();
+
+    // Assert
+    Assert.That(result, Is.EqualTo(player1));
+}
+
+[Test]
+public void GetCurrentPlayer_NoPlayers_ThrowsInvalidOperationException()
+{
+    // Arrange
+    _game.ResetGame(_game.Deck, _game.DiscardPile);
+
+    // Act
+    try
+    {
+        _game.GetCurrentPlayer();
+        Assert.Fail("Expected InvalidOperationException was not thrown");
+    }
+    catch (InvalidOperationException)
+    {
+        // Assert
+        Assert.Pass();
+    }
+}
+
+[Test]
+public void GetPlayerCards_RegisteredPlayer_ReturnsPlayerCards()
+{
+    // Arrange
+    var player = new Player("Player1");
+    _game.ChangePlayers(new List<IPlayer> { player });
+
+    _game.DrawCard(player);
+
+    // Act
+    var cards = _game.GetPlayerCards(player);
+
+    // Assert
+    Assert.That(cards.Count, Is.EqualTo(1));
+}
+
+[Test]
+public void GetPlayerCards_PlayerNotRegistered_ThrowsKeyNotFoundException()
+{
+    // Arrange
+    var registeredPlayer = new Player("Player1");
+    var unregisteredPlayer = new Player("PlayerX");
+
+    _game.ChangePlayers(new List<IPlayer> { registeredPlayer });
+
+    // Act
+    try
+    {
+        _game.GetPlayerCards(unregisteredPlayer);
+        Assert.Fail("Expected KeyNotFoundException was not thrown");
+    }
+    catch (KeyNotFoundException)
+    {
+        // Assert
+        Assert.Pass();
+    }
+}
+
+[Test]
+public void IsCardValid_NoLastPlayedCard_ReturnsFalse()
+{
+    // Arrange
+    var card = new Card(CardType.Number3, CardColor.Red);
+
+    // Act
+    var result = _game.IsCardValid(card);
+
+    // Assert
+    Assert.That(result, Is.False);
+}
+
+[Test]
+public void IsCardValid_SameColorAsLastPlayed_ReturnsTrue()
+{
+    // Arrange
+    var player1 = new Player("Player1");
+    var player2 = new Player("Player2");
+
+    _game.ChangePlayers(new List<IPlayer> { player1, player2 });
+
+    _game.StartGame();
+
+    // last played card sudah ada karena StartGame()
+    var lastPlayed = _game.GetLastPlayedCard();
+    Assert.That(lastPlayed, Is.Not.Null);
+
+    // buat kartu dengan warna sama
+    var validCard = new Card(
+        CardType.Number5,
+        lastPlayed.Color!.Value
+    );
+
+    // Act
+    var result = _game.IsCardValid(validCard);
+
+    // Assert
+    Assert.That(result, Is.True);
+}
+
+[Test]
+public void SetCurrentColor_ValidColor_UpdatesCurrentColorAndRaisesEvent()
+{
+    // Arrange
+    CardColor? raisedColor = null;
+    _game.CurrentColorChanged += color => raisedColor = color;
+
+    // Act
+    _game.SetCurrentColor(CardColor.Blue);
+
+    // Assert
+    Assert.That(_game.CurrentColor, Is.EqualTo(CardColor.Blue));
+    Assert.That(raisedColor, Is.EqualTo(CardColor.Blue));
+}
+
+[Test]
+public void SetCurrentColor_NoEventSubscriber_DoesNotThrow()
+{
+    // Act & Assert
+    Assert.That(
+        () => _game.SetCurrentColor(CardColor.Red),
+        Throws.Nothing
+    );
+}
+
+
+
 }

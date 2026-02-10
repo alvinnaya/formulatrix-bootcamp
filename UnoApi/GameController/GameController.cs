@@ -13,6 +13,8 @@ namespace GameControllerNamespace;
     {
         // ===== STATE =====
         public List<IPlayer>? Players { get; private set; }
+
+        
         
         public IDeck Deck { get; private set; }
         public IDiscardPile DiscardPile { get; private set; }
@@ -21,7 +23,7 @@ namespace GameControllerNamespace;
         private ICard? _lastPlayedCard;
         private IPlayer? _lastPlayer;
         private IPlayer? _currentPlayer;
-
+        private ILogger<GameController> _log;
         public Direction Direction { get; private set; }
         public CardColor CurrentColor { get; private set; }
         public bool IsGameOver { get; private set; }
@@ -42,28 +44,31 @@ namespace GameControllerNamespace;
         // ===== CONSTRUCTOR =====
         //constructor dengan parameter list player, deck, dan discard pile.
         //sementara List player boleh kosong (null)
-        public GameController(List<IPlayer>? players, IDeck deck, IDiscardPile discardPile)
+        public GameController( IDeck deck, IDiscardPile discardPile, ILogger<GameController> logger)
         {
            
-            Players = players;
+            Players = new List<IPlayer>();
             Deck = deck;
             DiscardPile = discardPile;
+
+            InitDeck(deck);
+            Shuffle(deck.Cards);
             
 
             _playerCards = new Dictionary<IPlayer, List<ICard>>();
-            if (players != null)
+            if (Players != null)
             {
-                foreach (IPlayer p in players)
+                foreach (IPlayer p in Players)
                     _playerCards[p] = new List<ICard>();
             }
 
-            _currentPlayer = players != null && players.Count > 0 ? players[0] : null;
+            _currentPlayer = Players != null && Players.Count > 0 ? Players[0] : null;
             Direction = Direction.Clockwise;
             IsGameStarted = false;
 
             Log.Debug(
                 "GameController created with {PlayerCount} players",
-                players?.Count ?? 0
+                Players?.Count ?? 0
             );
 
             
@@ -90,6 +95,57 @@ namespace GameControllerNamespace;
         );
     }
 
+ private void InitDeck(IDeck deck)
+    {
+        foreach (CardColor color in Enum.GetValues<CardColor>())
+        {
+            deck.Cards.Push(new Card(CardType.Number0, color));
+            deck.Cards.Push(new Card(CardType.Number1, color));
+            deck.Cards.Push(new Card(CardType.Number2, color));
+            deck.Cards.Push(new Card(CardType.Number3, color));
+            deck.Cards.Push(new Card(CardType.Number4, color));
+            deck.Cards.Push(new Card(CardType.Number5, color));
+            deck.Cards.Push(new Card(CardType.Number6, color));
+            deck.Cards.Push(new Card(CardType.Number7, color));
+            deck.Cards.Push(new Card(CardType.Number8, color));
+            deck.Cards.Push(new Card(CardType.Number9, color));
+            deck.Cards.Push(new Card(CardType.Skip, color));
+            deck.Cards.Push(new Card(CardType.Reverse, color));
+            deck.Cards.Push(new Card(CardType.DrawTwo, color));
+        }
+
+        deck.Cards.Push(new Card(CardType.Wild));
+        deck.Cards.Push(new Card(CardType.WildDrawFour));
+        Log.Debug(
+            "Deck initialized. TotalCards={CardCount}",
+            deck.Cards.Count
+        );
+    }
+
+//mengacak urutan kartu di deck
+ private void Shuffle<T>(Stack<T> stack)
+        {
+            // memindahkan elemen Stack ke List untuk diacak
+            List<T> list = new List<T>(stack);
+            // membangun ulang Stack dengan urutan acak
+            Random rnd = new Random();
+            stack.Clear();
+
+            while (list.Count > 0)
+            {   
+                //mendapatkan index acak dari jumlah elemen di list
+                int i = rnd.Next(list.Count);
+                //mmemindahkan elemen dari list ke stack
+                stack.Push(list[i]);
+                //menghapus elemen yang sudah dipindahkan dari list
+                list.RemoveAt(i);
+            }
+            Log.Debug(
+                "Deck shuffled. CardCount={CardCount}",
+                stack.Count
+            );
+
+        }
 
     //membuat dictionary yang berisi nama pemain sebagai key
     // dan jumlah kartu yang dimiliki pemain tersebut sebagai value.
@@ -115,6 +171,11 @@ namespace GameControllerNamespace;
     {
         if (Players == null || Players.Count == 0)
             return;
+
+         foreach (var p in Players)
+                for (int i = 0; i < 7; i++)
+                    DrawCard(p);
+
 
         GameStarted?.Invoke();
         _currentPlayer = Players[0];
@@ -278,9 +339,14 @@ namespace GameControllerNamespace;
     public bool IsCardValid(ICard card)
     {
         // filter pengaman dengan mengecek kartu terakhir yang dimainkan
-        if (_lastPlayedCard == null)
-            return true;
-
+         if (_lastPlayedCard == null)
+            {
+                Log.Warning(
+                    "IsCardValid called before any card was played. Card: {CardType}",
+                    card.Type
+                );
+                return false;
+            }
         // Wild selalu boleh
         if (card.Type == CardType.Wild || card.Type == CardType.WildDrawFour)
             return true;

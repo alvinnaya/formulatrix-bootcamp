@@ -70,7 +70,6 @@ static public void InitDeck(IDeck deck)
             deck.Cards.Push(new Card(CardType.Number7, color));
             deck.Cards.Push(new Card(CardType.Number8, color));
             deck.Cards.Push(new Card(CardType.Number9, color));
-
             deck.Cards.Push(new Card(CardType.Skip, color));
             deck.Cards.Push(new Card(CardType.Reverse, color));
             deck.Cards.Push(new Card(CardType.DrawTwo, color));

@@ -20,21 +20,26 @@ using Serilog.Formatting.Json;
                 "logs/app.json",
                 rollingInterval: RollingInterval.Day)
                 .CreateLogger();
+        
 
         Log.Information("Aplikasi dimulai");
 
-        Deck.Deck deck = new Deck.Deck();
-        Helper.InitDeck(deck);
-        Helper.Shuffle(deck.Cards);
-        DiscardPile discardPile = new DiscardPile();
+        // Deck.Deck deck = new Deck.Deck();
+        // Helper.InitDeck(deck);
+        // Helper.Shuffle(deck.Cards);
+        // DiscardPile discardPile = new DiscardPile();
 
         //awalnya player kosong, nanti diisi pas ada command createplayer
-        GameController game = new GameController( new List<IPlayer>(),deck, discardPile);
+        // GameController game = new GameController( new List<IPlayer>(),deck, discardPile);
 
         var builder = WebApplication.CreateBuilder(args);
         builder.Services.AddControllers();
         builder.Services.AddSignalR();
-        builder.Services.AddSingleton<GameController>(game);
+        builder.Services.AddTransient<IDeck, Deck.Deck>();
+        builder.Services.AddTransient<IDiscardPile, DiscardPile>();
+        builder.Services.AddSingleton<GameController>();
+
+        builder.Host.UseSerilog();
 
         Log.Information("Aplikasi telah membuat game object awal");
 

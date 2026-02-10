@@ -21,6 +21,8 @@ namespace Controllers;
          // Injected hub for notifications
         private readonly IHubContext<GameHub> hub;
 
+
+
         public GameApiController(GameController game,IHubContext<GameHub> hub)
         {
             this.game = game;
@@ -48,10 +50,7 @@ namespace Controllers;
             if (game.IsGameStarted) return Ok(new { message = "Game already started" });
             if (game.Players == null || game.Players.Count == 0) return Ok(new { message = "No players in the game" });
 
-            foreach (var p in game.Players)
-                for (int i = 0; i < 7; i++)
-                    game.DrawCard(p);
-
+           
             game.StartGame();
             // BroadcastGameState("game start");
             return Ok(new { message = "Game started successfully" });
