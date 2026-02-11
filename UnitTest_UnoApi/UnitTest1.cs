@@ -83,6 +83,7 @@ public class Tests
         
 
         var players = new List<IPlayer> { player1, player2 };
+        
         _game.ChangePlayers(players);
 
         _game.DrawCard(player1);
