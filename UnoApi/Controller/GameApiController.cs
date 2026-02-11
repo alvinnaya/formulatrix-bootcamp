@@ -30,6 +30,7 @@ namespace Controllers;
             
         }
 
+
         [HttpPost("createplayer")]
         public IActionResult CreatePlayer( [FromQuery] int count)
         {
@@ -40,6 +41,7 @@ namespace Controllers;
             Helper.CreatePlayers(count, newPlayers);
             game.ChangePlayers(newPlayers);
 
+          
             // BroadcastJson("info", new { message = $"there was {count} Players" });
             return Ok(new { message = $"Created {count} players" });
         }
@@ -53,7 +55,29 @@ namespace Controllers;
            
             game.StartGame();
             // BroadcastGameState("game start");
+
+              game.GameEnded += async (IPlayer winner) =>
+            {
+                await hub.Clients.All.SendAsync("winner", winner);
+            };
+
+            
             return Ok(new { message = "Game started successfully" });
+        }
+
+        [HttpPost("resetgame")]
+        public IActionResult ResetGame( )
+        {
+          
+            if (!game.IsGameStarted) return Ok();
+
+            var deck = new Deck.Deck();
+            IDiscardPile discardPile = new DiscardPile();
+
+            game.ResetGame(deck, discardPile);
+          
+            // BroadcastJson("info", new { message = $"there was {count} Players" });
+            return Ok(new { message = $"Game are reset" });
         }
 
         [HttpGet("getcurrentstate")]

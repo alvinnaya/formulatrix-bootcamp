@@ -51,16 +51,7 @@ namespace GameControllerNamespace;
             Deck = deck;
             DiscardPile = discardPile;
 
-            InitDeck(deck);
-            Shuffle(deck.Cards);
-            
-
-            _playerCards = new Dictionary<IPlayer, List<ICard>>();
-            if (Players != null)
-            {
-                foreach (IPlayer p in Players)
-                    _playerCards[p] = new List<ICard>();
-            }
+           
 
             _currentPlayer = Players != null && Players.Count > 0 ? Players[0] : null;
             Direction = Direction.Clockwise;
@@ -171,6 +162,17 @@ namespace GameControllerNamespace;
     {
         if (Players == null || Players.Count == 0)
             return;
+
+        InitDeck(Deck);
+        Shuffle(Deck.Cards);
+            
+
+            _playerCards = new Dictionary<IPlayer, List<ICard>>();
+            if (Players != null)
+            {
+                foreach (IPlayer p in Players)
+                    _playerCards[p] = new List<ICard>();
+            }
 
          foreach (var p in Players)
                 for (int i = 0; i < 7; i++)

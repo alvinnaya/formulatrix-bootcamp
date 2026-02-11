@@ -11,4 +11,5 @@ public class GameStateDTO
     public bool IsGameStarted { get; set; }
 
     public bool GameEnd { get; set; }
+    
 }

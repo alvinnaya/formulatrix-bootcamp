@@ -138,6 +138,7 @@ static public void BroadcastJson(string type, object data,IHubContext<GameHub> h
 
 
 
+
 static public GameStateDTO BroadcastGameState(GameController game, string action)
 {
 
@@ -150,7 +151,9 @@ static public GameStateDTO BroadcastGameState(GameController game, string action
         AllPlayers = GetPlayerCardCounts(game),
         Action = action,
         CurrentColor = game.CurrentColor.ToString(),
-        GameEnd = game.IsGameOver
+        GameEnd = game.IsGameOver,
+      
+        
     };
 
     
