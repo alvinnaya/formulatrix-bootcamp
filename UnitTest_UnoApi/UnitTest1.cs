@@ -5,6 +5,8 @@ using Players;
 using helperFunction;
 using Moq;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+
 
 
 namespace UnitTest_UnoApi;
@@ -26,17 +28,13 @@ public class Tests
         // _playerList = new List<IPlayer>();
         // Helper.InitDeck(_deck);
         // _game = new GameController( _playerList ,_deck, _discardPile);
+    var deck = new Deck.Deck();
+    var discardPile = new DiscardPile();
 
-    var services = new ServiceCollection();
-
-    services.AddSingleton<IDeck, Deck.Deck>();
-    services.AddSingleton<IDiscardPile, DiscardPile>();
-    services.AddSingleton<List<IPlayer>>();
-    services.AddSingleton<GameController>();
-
-    var provider = services.BuildServiceProvider();
-
-    _game = provider.GetRequiredService<GameController>();
+    var loggerMock = new Mock<ILogger<GameController>>();
+    // Buat GameController manual
+     _game = new GameController(deck, discardPile, loggerMock.Object);
+    
     }
 
 //ChangePlayers
@@ -213,29 +211,38 @@ public class Tests
     }
 
 //PlayCard
-    [Test]
-    public void PlayCard_ValidCard_RemoveCardFromPlayerHand()
-    {
-        // Arrange
-        var player1 = new Player("Player1");
-        var player2 = new Player("Player2");
+   [Test]
+public void PlayCard_ValidWildCard_RemovesCardFromPlayerHand()
+{
+    // Arrange
+    var player1 = new Player("Player1");
+    var player2 = new Player("Player2");
 
-        _game.ChangePlayers(new List<IPlayer> { player1, player2 });
-        _game.StartGame();
+    _game.ChangePlayers(new List<IPlayer> { player1, player2 });
 
-        // Ambil kartu lewat API resmi
-        _game.DrawCard(player1);
-        var card = _game.GetPlayerCards(player1).First();
+    _game.StartGame();
+    // Buat Wild Card mock
+    var wildCardMock = new Mock<ICard>();
+    wildCardMock.Setup(c => c.Type).Returns(CardType.Wild);
+    wildCardMock.Setup(c => c.Color).Returns((CardColor?)null); // Wild awalnya tanpa warna
+    var wildCard = wildCardMock.Object;
 
-        int cardCountBefore = _game.GetPlayerCards(player1).Count;
+    // Masukkan ke tangan player
+    var playerCardsField = typeof(GameController)
+        .GetField("_playerCards", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+    var dict = (Dictionary<IPlayer, List<ICard>>)playerCardsField.GetValue(_game);
+    dict[player1].Clear();
+    dict[player1].Add(wildCard);
 
-        // Act
-        _game.PlayCard(player1, card);
+    int cardCountBefore = dict[player1].Count;
 
-        // Assert
-        Assert.That(_game.GetPlayerCards(player1).Count,
-            Is.EqualTo(cardCountBefore - 1));
-    }
+    // Act
+    _game.PlayCard(player1, wildCard);
+
+    // Assert
+    Assert.That(dict[player1].Count, Is.EqualTo(cardCountBefore - 1),
+        "Kartu Wild seharusnya dihapus dari tangan player setelah dimainkan");
+}
 
    [Test]
     public void PlayCard_InvalidCard_DoesNothing()
@@ -355,11 +362,30 @@ public class Tests
     _game.ChangePlayers(new List<IPlayer> { player1, player2 });
     _game.StartGame();
 
-    _game.DrawCard(player1);
-    var card = _game.GetPlayerCards(player1).First();
 
+    var wildCardMock = new Mock<ICard>();
+
+    // Set tipe kartu menjadi Wild
+    wildCardMock.Setup(c => c.Type).Returns(CardType.Wild);
+
+    // Set warnanya null (pemain akan pilih saat dimainkan)
+    wildCardMock.Setup(c => c.Color).Returns((CardColor?)null);
+
+    // Ambil object mock untuk digunakan
+    ICard wildCard = wildCardMock.Object;
+
+    var playerCardsField = typeof(GameController)
+    .GetField("_playerCards", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+    var dict = (Dictionary<IPlayer, List<ICard>>)playerCardsField.GetValue(_game);
+
+    // Masukkan wild card ke tangan player
+    dict[player1].Add(wildCard);
+
+    var card = _game.GetPlayerCards(player1).Last();
     // Act
-    _game.PlayCard(player1, card);
+    _game.PlayCard(player1,card );
+
     var result = _game.GetLastPlayedCard();
 
     // Assert
@@ -393,11 +419,30 @@ public void GetLastPlayer_AfterPlayCard_ReturnsLastPlayer()
     _game.ChangePlayers(new List<IPlayer> { player1, player2 });
     _game.StartGame();
 
-    _game.DrawCard(player1);
-    var card = _game.GetPlayerCards(player1).First();
+   var wildCardMock = new Mock<ICard>();
 
-    // Act
+    // Set tipe kartu menjadi Wild
+    wildCardMock.Setup(c => c.Type).Returns(CardType.Wild);
+
+    // Set warnanya null (pemain akan pilih saat dimainkan)
+    wildCardMock.Setup(c => c.Color).Returns((CardColor?)null);
+
+    // Ambil object mock untuk digunakan
+    ICard wildCard = wildCardMock.Object;
+
+    var playerCardsField = typeof(GameController)
+    .GetField("_playerCards", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+    var dict = (Dictionary<IPlayer, List<ICard>>)playerCardsField.GetValue(_game);
+
+    // Masukkan wild card ke tangan player
+    dict[player1].Add(wildCard);
+
+    ICard card = _game.GetPlayerCards(player1).Last();
+
     _game.PlayCard(player1, card);
+
+    _game.Nexturn();
     var result = _game.GetLastPlayer();
 
     // Assert
@@ -560,6 +605,63 @@ public void SetCurrentColor_NoEventSubscriber_DoesNotThrow()
     );
 }
 
+
+  [Test]
+    public void ResetGame_Positive_AllStateReset()
+    {
+        // Arrange
+        var oldDeck = _game.Deck;
+        var oldDiscard = _game.DiscardPile;
+
+        // Tambahkan pemain dan kartu agar ada state untuk di-reset
+        var player = new Player("Player1");
+        _game.ChangePlayers(new List<IPlayer> { player });
+        _game.StartGame();
+
+        // Act
+        var newDeck = new Mock<IDeck>();
+        newDeck.Setup(d => d.Cards).Returns(new Stack<ICard>());
+
+        var newDiscard = new Mock<IDiscardPile>();
+        newDiscard.Setup(d => d.Cards).Returns(new Stack<ICard>());
+
+        _game.ResetGame(newDeck.Object, newDiscard.Object);
+
+        // Assert
+        Assert.That(_game.Players, Is.Null, "Players should be null after reset");
+        Assert.That(_game.GetPlayerCardCounts().Count, Is.EqualTo(0), "Player cards should be empty");
+        Assert.That(_game.GetLastPlayedCard(), Is.Null);
+        Assert.That(_game.GetLastPlayer(), Is.Null);
+        Assert.That(_game.IsGameOver, Is.False);
+        Assert.That(_game.IsGameStarted, Is.False);
+        Assert.That(_game.Direction, Is.EqualTo(Direction.Clockwise));
+        Assert.That(_game.CurrentColor, Is.EqualTo(default(CardColor)));
+        Assert.That(_game.Deck, Is.EqualTo(newDeck.Object));
+        Assert.That(_game.DiscardPile, Is.EqualTo(newDiscard.Object));
+
+        
+    }
+
+    [Test]
+    public void ResetGame_Negative_OldDeckNotUsed()
+    {
+        // Arrange
+        var oldDeck = _game.Deck;
+        var oldDiscard = _game.DiscardPile;
+
+        // Act
+        var newDeck = new Mock<IDeck>();
+        newDeck.Setup(d => d.Cards).Returns(new Stack<ICard>());
+
+        var newDiscard = new Mock<IDiscardPile>();
+        newDiscard.Setup(d => d.Cards).Returns(new Stack<ICard>());
+
+        _game.ResetGame(newDeck.Object, newDiscard.Object);
+
+        // Assert: pastikan objek lama **tidak lagi digunakan**
+        Assert.That(_game.Deck, Is.Not.EqualTo(oldDeck));
+        Assert.That(_game.DiscardPile, Is.Not.EqualTo(oldDiscard));
+    }
 
 
 }

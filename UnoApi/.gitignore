@@ -1,0 +1,7 @@
+# Visual Studio / .NET build folders
+bin/
+obj/
+*.user
+*.suo
+*.cache
+logs/
