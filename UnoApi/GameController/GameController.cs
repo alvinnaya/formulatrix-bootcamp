@@ -5,6 +5,7 @@ using Players;
 using Deck;
 using Serilog;
 using Serilog.Formatting.Json;
+using System.Security.Cryptography.X509Certificates;
 
 namespace GameControllerNamespace;
 
@@ -367,6 +368,7 @@ namespace GameControllerNamespace;
 
     public void SetCurrentColor(CardColor color)
     {
+        
         CurrentColor = color;
         CurrentColorChanged?.Invoke(CurrentColor);
     }
@@ -561,6 +563,11 @@ private void EndGame(IPlayer winner)
 // seolah-olah game controller baru dibuat.
 public void ResetGame(IDeck deck, IDiscardPile discardPile)
     {
+
+        if(Deck == deck || DiscardPile == discardPile)
+        {
+            return;
+        }
         Deck = deck;
         DiscardPile = discardPile;
 

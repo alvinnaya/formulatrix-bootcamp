@@ -34,8 +34,8 @@ using Serilog.Formatting.Json;
         
         Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.Information()               // level default aplikasi
-        .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning) // batasi log Microsoft
-        .MinimumLevel.Override("System", Serilog.Events.LogEventLevel.Warning)
+                .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning) // batasi log Microsoft
+                .MinimumLevel.Override("System", Serilog.Events.LogEventLevel.Warning)
                         .WriteTo.Console()
                 .WriteTo.File(
                 new JsonFormatter(),
@@ -48,8 +48,7 @@ using Serilog.Formatting.Json;
         
         builder.Host.UseSerilog();
 
-        Log.Information("Aplikasi telah membuat game object awal");
-
+       
         builder.Services.AddCors(options =>
         {
         options.AddDefaultPolicy(policy =>
