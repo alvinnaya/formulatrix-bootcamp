@@ -1,0 +1,13 @@
+{"Timestamp":"2026-02-11T06:44:51.7981651+07:00","Level":"Information","MessageTemplate":"Aplikasi dimulai"}
+{"Timestamp":"2026-02-11T06:44:51.8911961+07:00","Level":"Information","MessageTemplate":"Aplikasi telah membuat game object awal"}
+{"Timestamp":"2026-02-11T06:44:52.0051882+07:00","Level":"Information","MessageTemplate":"Now listening on: {address}","Properties":{"address":"http://localhost:5047","EventId":{"Id":14,"Name":"ListeningOnAddress"},"SourceContext":"Microsoft.Hosting.Lifetime"}}
+{"Timestamp":"2026-02-11T06:44:52.0081561+07:00","Level":"Information","MessageTemplate":"Application started. Press Ctrl+C to shut down.","Properties":{"SourceContext":"Microsoft.Hosting.Lifetime"}}
+{"Timestamp":"2026-02-11T06:44:52.0084859+07:00","Level":"Information","MessageTemplate":"Hosting environment: {EnvName}","Properties":{"EnvName":"Development","SourceContext":"Microsoft.Hosting.Lifetime"}}
+{"Timestamp":"2026-02-11T06:44:52.0139335+07:00","Level":"Information","MessageTemplate":"Content root path: {ContentRoot}","Properties":{"ContentRoot":"A:\\coding\\Formulatrix\\formulatrix-bootcamp\\UnoApi","SourceContext":"Microsoft.Hosting.Lifetime"}}
+{"Timestamp":"2026-02-11T07:15:59.1228414+07:00","Level":"Information","MessageTemplate":"Aplikasi dimulai"}
+{"Timestamp":"2026-02-11T07:15:59.2303817+07:00","Level":"Information","MessageTemplate":"Aplikasi telah membuat game object awal"}
+{"Timestamp":"2026-02-11T07:15:59.3432134+07:00","Level":"Information","MessageTemplate":"Now listening on: {address}","Properties":{"address":"http://localhost:5047","EventId":{"Id":14,"Name":"ListeningOnAddress"},"SourceContext":"Microsoft.Hosting.Lifetime"}}
+{"Timestamp":"2026-02-11T07:15:59.3460602+07:00","Level":"Information","MessageTemplate":"Application started. Press Ctrl+C to shut down.","Properties":{"SourceContext":"Microsoft.Hosting.Lifetime"}}
+{"Timestamp":"2026-02-11T07:15:59.3462968+07:00","Level":"Information","MessageTemplate":"Hosting environment: {EnvName}","Properties":{"EnvName":"Development","SourceContext":"Microsoft.Hosting.Lifetime"}}
+{"Timestamp":"2026-02-11T07:15:59.3464269+07:00","Level":"Information","MessageTemplate":"Content root path: {ContentRoot}","Properties":{"ContentRoot":"A:\\coding\\Formulatrix\\formulatrix-bootcamp\\UnoApi","SourceContext":"Microsoft.Hosting.Lifetime"}}
+{"Timestamp":"2026-02-11T07:18:25.5773418+07:00","Level":"Information","MessageTemplate":"Application is shutting down...","Properties":{"SourceContext":"Microsoft.Hosting.Lifetime"}}

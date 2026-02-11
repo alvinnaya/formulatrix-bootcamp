@@ -44,7 +44,7 @@ namespace GameControllerNamespace;
         // ===== CONSTRUCTOR =====
         //constructor dengan parameter list player, deck, dan discard pile.
         //sementara List player boleh kosong (null)
-        public GameController( IDeck deck, IDiscardPile discardPile, ILogger<GameController> logger)
+        public GameController( IDeck deck, IDiscardPile discardPile)
         {
            
             Players = new List<IPlayer>();

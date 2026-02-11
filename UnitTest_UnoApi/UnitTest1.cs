@@ -4,6 +4,7 @@ using GameControllerNamespace;
 using Players;
 using helperFunction;
 using Moq;
+using Microsoft.Extensions.DependencyInjection;
 
 
 namespace UnitTest_UnoApi;
@@ -20,12 +21,22 @@ public class Tests
     [SetUp]
     public void Setup()
     {
-        _deck = new Deck.Deck();
-        _discardPile = new DiscardPile();
-        _playerList = new List<IPlayer>();
-        Helper.InitDeck(_deck);
-        _game = new GameController( _playerList ,_deck, _discardPile);
-        
+        // _deck = new Deck.Deck();
+        // _discardPile = new DiscardPile();
+        // _playerList = new List<IPlayer>();
+        // Helper.InitDeck(_deck);
+        // _game = new GameController( _playerList ,_deck, _discardPile);
+
+    var services = new ServiceCollection();
+
+    services.AddSingleton<IDeck, Deck.Deck>();
+    services.AddSingleton<IDiscardPile, DiscardPile>();
+    services.AddSingleton<List<IPlayer>>();
+    services.AddSingleton<GameController>();
+
+    var provider = services.BuildServiceProvider();
+
+    _game = provider.GetRequiredService<GameController>();
     }
 
 //ChangePlayers
