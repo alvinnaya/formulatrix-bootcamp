@@ -44,12 +44,13 @@ namespace GameControllerNamespace;
         // ===== CONSTRUCTOR =====
         //constructor dengan parameter list player, deck, dan discard pile.
         //sementara List player boleh kosong (null)
-        public GameController( IDeck deck, IDiscardPile discardPile)
+        public GameController( IDeck deck, IDiscardPile discardPile, ILogger<GameController> logger )
         {
            
             Players = new List<IPlayer>();
             Deck = deck;
             DiscardPile = discardPile;
+            _log = logger;
 
             InitDeck(deck);
             Shuffle(deck.Cards);
@@ -66,7 +67,7 @@ namespace GameControllerNamespace;
             Direction = Direction.Clockwise;
             IsGameStarted = false;
 
-            Log.Debug(
+            _log.LogInformation(
                 "GameController created with {PlayerCount} players",
                 Players?.Count ?? 0
             );
@@ -85,11 +86,11 @@ namespace GameControllerNamespace;
 
         _currentPlayer = players.Count > 1 ? players[0] : null;
 
-        Log.Information(
+        _log.LogInformation(
             "Players changed. New player count: {PlayerCount}",
             players.Count
         );
-        Log.Debug(
+        _log.LogInformation(
             "Players changed to {@Players}",
             players.Select(p => p.Name)
         );
@@ -116,7 +117,7 @@ namespace GameControllerNamespace;
 
         deck.Cards.Push(new Card(CardType.Wild));
         deck.Cards.Push(new Card(CardType.WildDrawFour));
-        Log.Debug(
+        _log.LogInformation(
             "Deck initialized. TotalCards={CardCount}",
             deck.Cards.Count
         );
@@ -140,7 +141,7 @@ namespace GameControllerNamespace;
                 //menghapus elemen yang sudah dipindahkan dari list
                 list.RemoveAt(i);
             }
-            Log.Debug(
+            _log.LogInformation(
                 "Deck shuffled. CardCount={CardCount}",
                 stack.Count
             );
@@ -194,7 +195,7 @@ namespace GameControllerNamespace;
         }
         IsGameStarted = true;
 
-        Log.Information(
+        _log.LogInformation(
             "Game started. FirstPlayer={PlayerName}, FirstCard={CardType}, Color={Color}",
             _currentPlayer.Name,
             first.Type,
@@ -209,7 +210,7 @@ namespace GameControllerNamespace;
         if (_playerCards[player].Count == 1)
         {
             player.HasCalledUno = true;
-            Log.Information(
+            _log.LogInformation(
             "UNO called by {Player}",
             player.Name
         );
@@ -221,20 +222,21 @@ namespace GameControllerNamespace;
 //ia akan mengecek apakah pemain mendpatkan hukuman uno atau tidak ketika kartunya sisa satu
     public void Nexturn()
     {
-        Log.Debug(
-            "Turn started for {Player}",
-            _currentPlayer.Name
-        );
+       
         if (IsGameOver) return;
         if (_currentPlayer == null)
         {
             return;
         }
+         _log.LogInformation(
+            "Turn started for {Player}",
+            _currentPlayer.Name
+        );
         //memanggil event TurnStarted sebelum giliran dimulai
         TurnStarted?.Invoke(_currentPlayer);
         CheckUno(_currentPlayer);
 
-        // Placeholder: player logic
+        // Placeholder: player _logic
         // PlayCard(_currentPlayer, someCard) or DrawCard(_currentPlayer);
         
 
@@ -244,7 +246,7 @@ namespace GameControllerNamespace;
         TurnEnded?.Invoke(_currentPlayer);
         // if (!IsGameOver)
         //     PlayTurn();
-        Log.Debug(
+        _log.LogInformation(
             "Turn ended. NextPlayer={NextPlayer}",
             _currentPlayer.Name
         );
@@ -270,7 +272,7 @@ namespace GameControllerNamespace;
 //setelah memainkan kartu, status HasCalledUno pemain direset menjadi false
             player.HasCalledUno = false;
 //jika pemain kehabisan kartu setelah memainkan kartu, maka permainan berakhir
-            Log.Information(
+            _log.LogInformation(
                 "Player {Player} plays card {CardType} {CardColor}",
                 player.Name,
                 card.Type,
@@ -290,7 +292,7 @@ namespace GameControllerNamespace;
         }
         else
         {
-             Log.Warning(
+             _log.LogWarning(
                 "Invalid card play. Player={Player}, Card={CardType}, CurrentColor={CurrentColor}, LastCard={LastCard}",
                 player.Name,
                 card.Type,
@@ -314,8 +316,8 @@ namespace GameControllerNamespace;
         _playerCards[player].Add(card);
         CardDrawn?.Invoke(player, card);
         player.HasCalledUno = false;
-
-        Log.Debug(
+        
+        _log.LogInformation(
                 "Player {Player} draws card {CardType}",
                 player.Name,
                 card.Type
@@ -341,7 +343,7 @@ namespace GameControllerNamespace;
         // filter pengaman dengan mengecek kartu terakhir yang dimainkan
          if (_lastPlayedCard == null)
             {
-                Log.Warning(
+                _log.LogWarning(
                     "IsCardValid called before any card was played. Card: {CardType}",
                     card.Type
                 );
@@ -433,7 +435,7 @@ private void ResolveCardEffect(ICard card)
         //untuk tipe kartu reverse maka akan membalik arah giliran permainan
         case CardType.Reverse:
             ReverseDirection();
-            Log.Information(
+            _log.LogInformation(
                 "Direction reversed. NewDirection={Direction}",
                 Direction
             );
@@ -448,7 +450,7 @@ private void ResolveCardEffect(ICard card)
 
             DrawCard(GetNextPlayer(1));
             DrawCard(GetNextPlayer(1));
-            Log.Information(
+            _log.LogInformation(
                 "Player {TargetPlayer} draws {DrawCount} cards due to {CardType}",
                 GetNextPlayer(1).Name,
                 2,
@@ -464,7 +466,7 @@ private void ResolveCardEffect(ICard card)
             DrawCard(GetNextPlayer(1));
             DrawCard(GetNextPlayer(1));
 
-            Log.Information(
+            _log.LogInformation(
                 "Player {TargetPlayer} draws {DrawCount} cards due to {CardType}",
                 GetNextPlayer(1).Name,
                 2,
@@ -522,7 +524,7 @@ private void CheckUno(IPlayer player)
         !_lastPlayer.HasCalledUno)
     {
         ApplyUnoPenalty(_lastPlayer);
-        Log.Warning(
+        _log.LogWarning(
             "UNO penalty applied to {Player}",
             player.Name
         );
@@ -544,7 +546,7 @@ private void ApplyUnoPenalty(IPlayer player)
 private void EndGame(IPlayer winner)
     {
         IsGameOver = true;
-        Log.Information(
+        _log.LogInformation(
             "Game ended. Winner={Winner}",
             winner.Name
         );
@@ -562,7 +564,7 @@ public void ResetGame(IDeck deck, IDiscardPile discardPile)
         Deck = deck;
         DiscardPile = discardPile;
 
-        Log.Information("Game reset");
+        _log.LogInformation("Game reset");
 
 
         Players = null;

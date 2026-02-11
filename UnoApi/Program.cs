@@ -12,17 +12,7 @@ using helperFunction;
 using Serilog;
 using Serilog.Formatting.Json;
 
-        Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Information()
-                .WriteTo.Console(new JsonFormatter())
-                .WriteTo.File(
-                new JsonFormatter(),
-                "logs/app.json",
-                rollingInterval: RollingInterval.Day)
-                .CreateLogger();
-        
-
-        Log.Information("Aplikasi dimulai");
+   
 
         // Deck.Deck deck = new Deck.Deck();
         // Helper.InitDeck(deck);
@@ -32,6 +22,8 @@ using Serilog.Formatting.Json;
         //awalnya player kosong, nanti diisi pas ada command createplayer
         // GameController game = new GameController( new List<IPlayer>(),deck, discardPile);
 
+        
+
         var builder = WebApplication.CreateBuilder(args);
         builder.Services.AddControllers();
         builder.Services.AddSignalR();
@@ -39,6 +31,21 @@ using Serilog.Formatting.Json;
         builder.Services.AddTransient<IDiscardPile, DiscardPile>();
         builder.Services.AddSingleton<GameController>();
 
+        
+        Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Information()               // level default aplikasi
+        .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning) // batasi log Microsoft
+        .MinimumLevel.Override("System", Serilog.Events.LogEventLevel.Warning)
+                        .WriteTo.Console()
+                .WriteTo.File(
+                new JsonFormatter(),
+                "logs/app.json",
+                rollingInterval: RollingInterval.Day)
+                .CreateLogger();
+        
+
+        builder.Logging.ClearProviders();
+        
         builder.Host.UseSerilog();
 
         Log.Information("Aplikasi telah membuat game object awal");
