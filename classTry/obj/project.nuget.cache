@@ -1,13 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "vDWonxljhf0=",
+  "dgSpecHash": "wpp2dSxIOag=",
   "success": true,
-  "projectFilePath": "A:\\coding\\Formulatrix\\formulatrix-bootcamp\\classTry\\classTry.csproj",
-  "expectedPackageFiles": [
-    "C:\\Users\\alvin\\.nuget\\packages\\microsoft.netcore.app.ref\\9.0.11\\microsoft.netcore.app.ref.9.0.11.nupkg.sha512",
-    "C:\\Users\\alvin\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\9.0.11\\microsoft.windowsdesktop.app.ref.9.0.11.nupkg.sha512",
-    "C:\\Users\\alvin\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\9.0.11\\microsoft.aspnetcore.app.ref.9.0.11.nupkg.sha512",
-    "C:\\Users\\alvin\\.nuget\\packages\\microsoft.netcore.app.host.win-x64\\9.0.11\\microsoft.netcore.app.host.win-x64.9.0.11.nupkg.sha512"
-  ],
+  "projectFilePath": "C:\\Users\\Alvian Naya\\Documents\\UnoApi\\formulatrix-bootcamp\\classTry\\classTry.csproj",
+  "expectedPackageFiles": [],
   "logs": []
 }
