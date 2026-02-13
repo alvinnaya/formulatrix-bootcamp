@@ -8,11 +8,11 @@ public class Postingan
 
     public string Content { get; set; } = string.Empty;
 
-    public Guid UserId { get; set; }
+    public string UserId { get; set; }
 
     public Users? User { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
 
-    public List<Comment> Comments { get; set; }
+    public List<Comment> Comments { get; set; } = new();
 }
