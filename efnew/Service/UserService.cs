@@ -59,6 +59,21 @@ public class UserService : IUserService
         return GenerateJwtToken(user);
     }
 
+  public async Task<List<UserResponseDto>> GetAllUsersAsync()
+{
+    var users = _userManager.Users.ToList();
+
+    var result = users.Select(user => new UserResponseDto
+    {
+        Id = user.Id,
+        UserName = user.UserName!,
+        Name = user.Name
+    }).ToList();
+
+    return await Task.FromResult(result);
+}
+
+
     private string GenerateJwtToken(Users user)
     {
         var jwtSection = _configuration.GetSection("Jwt");

@@ -52,7 +52,7 @@ builder.Services.AddValidatorsFromAssemblyContaining<RegisterUserDtoValidator>()
 
 builder.Services.AddScoped<IUserService, UserService>();
 
-//ini untuk menjaga route dengan cara route yang dijaga kita cek apakah authentication valid berdasarkan token jwt yang dikirim
+//ini untuk authentication dengan membuat token jwt
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -73,7 +73,7 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-//ini untuk settings authorization
+//ini untuk settings authorization dengan mengecek token jwt dan berdasarkan token dia itu siapa?
 builder.Services.AddAuthorization();
 
 builder.Services.AddControllers();

@@ -29,5 +29,10 @@ public class UsersController : ControllerBase
         return Ok(new { token });
     }
 
-    
+    [HttpGet("getallUser")]
+    public async Task<IActionResult> GetAllUsers()
+    {
+        var users = await _userService.GetAllUsersAsync();
+        return Ok(users);
+    }
 }
