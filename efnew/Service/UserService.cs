@@ -1,5 +1,7 @@
+using AutoMapper;
 using DTOs.User;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using Models;
@@ -14,34 +16,28 @@ public class UserService : IUserService
 {
     private readonly UserManager<Users> _userManager;
     private readonly IConfiguration _configuration;
+    private readonly IMapper _mapper;
 
-    public UserService(UserManager<Users> userManager,
-                       IConfiguration configuration)
+    public UserService(
+        UserManager<Users> userManager,
+        IConfiguration configuration,
+        IMapper mapper)
     {
         _userManager = userManager;
         _configuration = configuration;
+        _mapper = mapper;
     }
 
     public async Task<UserResponseDto> RegisterAsync(RegisterUserDto dto)
     {
-        var user = new Users
-        {
-            UserName = dto.UserName,
-            Name = dto.Name
-        };
+        var user = _mapper.Map<Users>(dto);
 
         var result = await _userManager.CreateAsync(user, dto.Password);
 
         if (!result.Succeeded)
             throw new Exception(string.Join(", ", result.Errors.Select(e => e.Description)));
-            
 
-        return new UserResponseDto
-        {
-            Id = user.Id,
-            UserName = user.UserName!,
-            Name = user.Name
-        };
+        return _mapper.Map<UserResponseDto>(user);
     }
 
     public async Task<string> LoginAsync(LoginUserDto dto)
@@ -51,28 +47,45 @@ public class UserService : IUserService
         if (user == null || !await _userManager.CheckPasswordAsync(user, dto.Password))
             throw new Exception("Invalid credentials");
 
-        Console.WriteLine(user.Id);
-        Console.WriteLine(user.UserName);
-        Console.WriteLine(user.Name);
-
-
         return GenerateJwtToken(user);
     }
 
-  public async Task<List<UserResponseDto>> GetAllUsersAsync()
-{
-    var users = _userManager.Users.ToList();
-
-    var result = users.Select(user => new UserResponseDto
+    public async Task<List<UserResponseDto>> GetAllUsersAsync()
     {
-        Id = user.Id,
-        UserName = user.UserName!,
-        Name = user.Name
-    }).ToList();
+        var users = await _userManager.Users.ToListAsync();
+        return _mapper.Map<List<UserResponseDto>>(users);
+    }
 
-    return await Task.FromResult(result);
-}
+    public async Task<UserResponseDto> UpdateUserAsync(string userId, UpdateUserDto dto)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
 
+        if (user is null)
+            throw new Exception("User tidak ditemukan.");
+
+        _mapper.Map(dto, user);
+        user.UpdatedAt = DateTime.UtcNow;
+
+        var result = await _userManager.UpdateAsync(user);
+
+        if (!result.Succeeded)
+            throw new Exception(string.Join(", ", result.Errors.Select(e => e.Description)));
+
+        return _mapper.Map<UserResponseDto>(user);
+    }
+
+    public async Task DeleteUserAsync(string userId)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+
+        if (user is null)
+            throw new Exception("User tidak ditemukan.");
+
+        var result = await _userManager.DeleteAsync(user);
+
+        if (!result.Succeeded)
+            throw new Exception(string.Join(", ", result.Errors.Select(e => e.Description)));
+    }
 
     private string GenerateJwtToken(Users user)
     {
@@ -88,7 +101,6 @@ public class UserService : IUserService
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id),
             new Claim(ClaimTypes.Name, user.UserName!),
-           
         };
 
         var token = new JwtSecurityToken(

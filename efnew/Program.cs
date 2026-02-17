@@ -1,8 +1,10 @@
 using Data;
+using Mapping;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using System.Text;
 using Models;
 using DTOs.User;
@@ -12,10 +14,7 @@ using FluentValidation;
 using FluentValidation.AspNetCore;
 using Validators;
 
-
 var builder = WebApplication.CreateBuilder(args);
-
-
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(
@@ -29,28 +28,23 @@ builder.Services.AddIdentity<Users, IdentityRole>(options =>
     options.Password.RequireNonAlphanumeric = false;
     options.Password.RequireUppercase = false;
     options.Password.RequireLowercase = false;
-    
-   
 })
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
-
-
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
 var jwtKey = jwtSection["Key"] ?? throw new InvalidOperationException("Jwt:Key is missing in configuration.");
 var jwtIssuer = jwtSection["Issuer"] ?? throw new InvalidOperationException("Jwt:Issuer is missing in configuration.");
 var jwtAudience = jwtSection["Audience"] ?? throw new InvalidOperationException("Jwt:Audience is missing in configuration.");
 
-
-
 // ini adalah tool untuk validasi dto
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<RegisterUserDtoValidator>();
 
-
-
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IPostinganService, PostinganService>();
+builder.Services.AddScoped<ICommentService, CommentService>();
+builder.Services.AddAutoMapper(typeof(UserProfile).Assembly);
 
 //ini untuk authentication dengan membuat token jwt
 builder.Services.AddAuthentication(options =>
@@ -75,19 +69,48 @@ builder.Services.AddAuthentication(options =>
 
 //ini untuk settings authorization dengan mengecek token jwt dan berdasarkan token dia itu siapa?
 builder.Services.AddAuthorization();
-
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendPolicy", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    var securityScheme = new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Masukkan token JWT dengan format: Bearer {token}"
+    };
+
+    options.AddSecurityDefinition("Bearer", securityScheme);
+
+    options.AddSecurityRequirement(openApiDocument => new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecuritySchemeReference("Bearer", openApiDocument, null),
+            new List<string>()
+        }
+    });
+});
 
 var app = builder.Build();
 
 app.UseSwagger();
 app.UseSwaggerUI();
 
+app.UseCors("FrontendPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
-
 
 app.MapControllers();
 
