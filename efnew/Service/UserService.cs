@@ -1,4 +1,5 @@
-using AutoMapper;
+﻿using AutoMapper;
+using Data;
 using DTOs.User;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -17,15 +18,18 @@ public class UserService : IUserService
     private readonly UserManager<Users> _userManager;
     private readonly IConfiguration _configuration;
     private readonly IMapper _mapper;
+    private readonly AppDbContext _context;
 
     public UserService(
         UserManager<Users> userManager,
         IConfiguration configuration,
-        IMapper mapper)
+        IMapper mapper,
+        AppDbContext context)
     {
         _userManager = userManager;
         _configuration = configuration;
         _mapper = mapper;
+        _context = context;
     }
 
     public async Task<UserResponseDto> RegisterAsync(RegisterUserDto dto)
@@ -61,7 +65,7 @@ public class UserService : IUserService
         var user = await _userManager.FindByIdAsync(userId);
 
         if (user is null)
-            throw new Exception("User tidak ditemukan.");
+            throw new KeyNotFoundException("User tidak ditemukan.");
 
         _mapper.Map(dto, user);
         user.UpdatedAt = DateTime.UtcNow;
@@ -79,12 +83,32 @@ public class UserService : IUserService
         var user = await _userManager.FindByIdAsync(userId);
 
         if (user is null)
-            throw new Exception("User tidak ditemukan.");
+            throw new KeyNotFoundException("User tidak ditemukan.");
+
+        await using var tx = await _context.Database.BeginTransactionAsync();
+
+        var userComments = await _context.Comment
+            .Where(c => c.UserId == userId)
+            .ToListAsync();
+
+        if (userComments.Count > 0)
+            _context.Comment.RemoveRange(userComments);
+
+        var userPostingan = await _context.Postingan
+            .Where(p => p.UserId == userId)
+            .ToListAsync();
+
+        if (userPostingan.Count > 0)
+            _context.Postingan.RemoveRange(userPostingan);
+
+        await _context.SaveChangesAsync();
 
         var result = await _userManager.DeleteAsync(user);
 
         if (!result.Succeeded)
             throw new Exception(string.Join(", ", result.Errors.Select(e => e.Description)));
+
+        await tx.CommitAsync();
     }
 
     private string GenerateJwtToken(Users user)

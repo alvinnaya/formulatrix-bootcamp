@@ -1,4 +1,5 @@
-using Data;
+﻿using Data;
+using DTOs.Common;
 using DTOs.Postingan;
 using DTOs.User;
 using Microsoft.AspNetCore.Authorization;
@@ -43,7 +44,45 @@ public class UsersController : ControllerBase
         return Ok(users);
     }
 
-    
+    [Authorize]
+    [HttpPut("edit")]
+    public async Task<IActionResult> UpdateMe(UpdateUserDto dto)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrWhiteSpace(userId))
+            return Unauthorized("Token tidak valid.");
+
+        try
+        {
+            var response = await _userService.UpdateUserAsync(userId, dto);
+            return Ok(response);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+    }
+
+    [Authorize]
+    [HttpDelete("delete")]
+    public async Task<IActionResult> DeleteMe()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrWhiteSpace(userId))
+            return Unauthorized("Token tidak valid.");
+
+        try
+        {
+            await _userService.DeleteUserAsync(userId);
+            return Ok(new MessageResponseDto { Message = "User berhasil dihapus." });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+    }
 
     [Authorize]
     [HttpPost("postingan")]

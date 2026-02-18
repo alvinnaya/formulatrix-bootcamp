@@ -16,6 +16,7 @@ using Validators;
 
 var builder = WebApplication.CreateBuilder(args);
 
+//setting db data dan entity
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(
         builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -31,6 +32,7 @@ builder.Services.AddIdentity<Users, IdentityRole>(options =>
 })
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
+
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
 var jwtKey = jwtSection["Key"] ?? throw new InvalidOperationException("Jwt:Key is missing in configuration.");
@@ -66,6 +68,7 @@ builder.Services.AddAuthentication(options =>
         ClockSkew = TimeSpan.Zero
     };
 });
+
 
 //ini untuk settings authorization dengan mengecek token jwt dan berdasarkan token dia itu siapa?
 builder.Services.AddAuthorization();
