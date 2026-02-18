@@ -1,4 +1,4 @@
-using Data;
+﻿using Data;
 using Mapping;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -13,6 +13,8 @@ using Services.Interfaces;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Validators;
+using Repositories;
+using Repositories.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,6 +48,11 @@ builder.Services.AddValidatorsFromAssemblyContaining<RegisterUserDtoValidator>()
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IPostinganService, PostinganService>();
 builder.Services.AddScoped<ICommentService, CommentService>();
+
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IPostinganRepository, PostinganRepository>();
+builder.Services.AddScoped<ICommentRepository, CommentRepository>();
+
 builder.Services.AddAutoMapper(typeof(UserProfile).Assembly);
 
 //ini untuk authentication dengan membuat token jwt

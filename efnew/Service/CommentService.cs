@@ -1,41 +1,36 @@
-using AutoMapper;
-using Data;
+﻿using AutoMapper;
 using DTOs.Comment;
-using Microsoft.EntityFrameworkCore;
+using Models;
+using Repositories.Interfaces;
 using Services.Interfaces;
 
 namespace Services;
 
 public class CommentService : ICommentService
 {
-    private readonly AppDbContext _context;
+    private readonly ICommentRepository _commentRepository;
     private readonly IMapper _mapper;
 
-    public CommentService(AppDbContext context, IMapper mapper)
+    public CommentService(ICommentRepository commentRepository, IMapper mapper)
     {
-        _context = context;
+        _commentRepository = commentRepository;
         _mapper = mapper;
     }
 
     public async Task<List<CommentResponseDto>> GetCommentsByPostinganAsync(Guid postinganId)
     {
-        var postinganExists = await _context.Postingan.AnyAsync(p => p.Id == postinganId);
+        var postinganExists = await _commentRepository.PostinganExistsAsync(postinganId);
 
         if (!postinganExists)
             throw new KeyNotFoundException("Postingan tidak ditemukan.");
 
-        var comments = await _context.Comment
-            .Where(c => c.PostinganId == postinganId)
-            .Include(c => c.User)
-            .OrderBy(c => c.Id)
-            .ToListAsync();
-
+        var comments = await _commentRepository.GetByPostinganAsync(postinganId);
         return _mapper.Map<List<CommentResponseDto>>(comments);
     }
 
     public async Task<CommentResponseDto> CreateCommentAsync(Guid postinganId, CreateCommentDto dto, string userId, string userName)
     {
-        var postinganExists = await _context.Postingan.AnyAsync(p => p.Id == postinganId);
+        var postinganExists = await _commentRepository.PostinganExistsAsync(postinganId);
 
         if (!postinganExists)
             throw new KeyNotFoundException("Postingan tidak ditemukan.");
@@ -44,8 +39,8 @@ public class CommentService : ICommentService
         comment.PostinganId = postinganId;
         comment.UserId = userId;
 
-        _context.Comment.Add(comment);
-        await _context.SaveChangesAsync();
+        await _commentRepository.AddAsync(comment);
+        await _commentRepository.SaveChangesAsync();
 
         var response = _mapper.Map<CommentResponseDto>(comment);
         response.UserName = userName;
@@ -54,8 +49,7 @@ public class CommentService : ICommentService
 
     public async Task DeleteCommentAsync(Guid postinganId, int commentId, string userId)
     {
-        var comment = await _context.Comment
-            .FirstOrDefaultAsync(c => c.Id == commentId && c.PostinganId == postinganId);
+        var comment = await _commentRepository.GetByIdAsync(postinganId, commentId);
 
         if (comment is null)
             throw new KeyNotFoundException("Comment tidak ditemukan.");
@@ -63,7 +57,7 @@ public class CommentService : ICommentService
         if (comment.UserId != userId)
             throw new UnauthorizedAccessException("Anda tidak memiliki akses.");
 
-        _context.Comment.Remove(comment);
-        await _context.SaveChangesAsync();
+        _commentRepository.Remove(comment);
+        await _commentRepository.SaveChangesAsync();
     }
 }

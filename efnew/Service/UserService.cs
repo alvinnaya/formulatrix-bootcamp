@@ -1,11 +1,9 @@
 ﻿using AutoMapper;
-using Data;
 using DTOs.User;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using Models;
+using Repositories.Interfaces;
 using Services.Interfaces;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -15,28 +13,25 @@ namespace Services;
 
 public class UserService : IUserService
 {
-    private readonly UserManager<Users> _userManager;
+    private readonly IUserRepository _userRepository;
     private readonly IConfiguration _configuration;
     private readonly IMapper _mapper;
-    private readonly AppDbContext _context;
 
     public UserService(
-        UserManager<Users> userManager,
+        IUserRepository userRepository,
         IConfiguration configuration,
-        IMapper mapper,
-        AppDbContext context)
+        IMapper mapper)
     {
-        _userManager = userManager;
+        _userRepository = userRepository;
         _configuration = configuration;
         _mapper = mapper;
-        _context = context;
     }
 
     public async Task<UserResponseDto> RegisterAsync(RegisterUserDto dto)
     {
         var user = _mapper.Map<Users>(dto);
 
-        var result = await _userManager.CreateAsync(user, dto.Password);
+        var result = await _userRepository.CreateAsync(user, dto.Password);
 
         if (!result.Succeeded)
             throw new Exception(string.Join(", ", result.Errors.Select(e => e.Description)));
@@ -46,9 +41,9 @@ public class UserService : IUserService
 
     public async Task<string> LoginAsync(LoginUserDto dto)
     {
-        var user = await _userManager.FindByNameAsync(dto.UserName);
+        var user = await _userRepository.FindByNameAsync(dto.UserName);
 
-        if (user == null || !await _userManager.CheckPasswordAsync(user, dto.Password))
+        if (user == null || !await _userRepository.CheckPasswordAsync(user, dto.Password))
             throw new Exception("Invalid credentials");
 
         return GenerateJwtToken(user);
@@ -56,13 +51,13 @@ public class UserService : IUserService
 
     public async Task<List<UserResponseDto>> GetAllUsersAsync()
     {
-        var users = await _userManager.Users.ToListAsync();
+        var users = await _userRepository.GetAllAsync();
         return _mapper.Map<List<UserResponseDto>>(users);
     }
 
     public async Task<UserResponseDto> UpdateUserAsync(string userId, UpdateUserDto dto)
     {
-        var user = await _userManager.FindByIdAsync(userId);
+        var user = await _userRepository.FindByIdAsync(userId);
 
         if (user is null)
             throw new KeyNotFoundException("User tidak ditemukan.");
@@ -70,7 +65,7 @@ public class UserService : IUserService
         _mapper.Map(dto, user);
         user.UpdatedAt = DateTime.UtcNow;
 
-        var result = await _userManager.UpdateAsync(user);
+        var result = await _userRepository.UpdateAsync(user);
 
         if (!result.Succeeded)
             throw new Exception(string.Join(", ", result.Errors.Select(e => e.Description)));
@@ -80,30 +75,26 @@ public class UserService : IUserService
 
     public async Task DeleteUserAsync(string userId)
     {
-        var user = await _userManager.FindByIdAsync(userId);
+        var user = await _userRepository.FindByIdAsync(userId);
 
         if (user is null)
             throw new KeyNotFoundException("User tidak ditemukan.");
 
-        await using var tx = await _context.Database.BeginTransactionAsync();
+        await using var tx = await _userRepository.BeginTransactionAsync();
 
-        var userComments = await _context.Comment
-            .Where(c => c.UserId == userId)
-            .ToListAsync();
+        var userComments = await _userRepository.GetCommentsByUserIdAsync(userId);
 
         if (userComments.Count > 0)
-            _context.Comment.RemoveRange(userComments);
+            _userRepository.RemoveComments(userComments);
 
-        var userPostingan = await _context.Postingan
-            .Where(p => p.UserId == userId)
-            .ToListAsync();
+        var userPostingan = await _userRepository.GetPostinganByUserIdAsync(userId);
 
         if (userPostingan.Count > 0)
-            _context.Postingan.RemoveRange(userPostingan);
+            _userRepository.RemovePostingan(userPostingan);
 
-        await _context.SaveChangesAsync();
+        await _userRepository.SaveChangesAsync();
 
-        var result = await _userManager.DeleteAsync(user);
+        var result = await _userRepository.DeleteAsync(user);
 
         if (!result.Succeeded)
             throw new Exception(string.Join(", ", result.Errors.Select(e => e.Description)));
