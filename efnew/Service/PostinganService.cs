@@ -1,5 +1,7 @@
 ﻿using AutoMapper;
 using DTOs.Postingan;
+using Common;
+using DTOs.Common;
 using Models;
 using Repositories.Interfaces;
 using Services.Interfaces;
@@ -17,7 +19,7 @@ public class PostinganService : IPostinganService
         _mapper = mapper;
     }
 
-    public async Task<PostinganResponseDto> CreatePostinganAsync(CreatePostinganDto dto, string userId, string userName)
+    public async Task<Result<PostinganResponseDto>> CreatePostinganAsync(CreatePostinganDto dto, string userId, string userName)
     {
         var post = _mapper.Map<Postingan>(dto);
         post.UserId = userId;
@@ -29,44 +31,49 @@ public class PostinganService : IPostinganService
         var response = _mapper.Map<PostinganResponseDto>(post);
         response.UserName = userName;
 
-        return response;
+        return Result<PostinganResponseDto>.Ok(response);
     }
 
-    public async Task<List<PostinganResponseDto>> GetAllPostinganAsync()
+    public async Task<Result<List<PostinganResponseDto>>> GetAllPostinganAsync()
     {
         var posts = await _postinganRepository.GetAllWithUserAsync();
-        return _mapper.Map<List<PostinganResponseDto>>(posts);
+        return Result<List<PostinganResponseDto>>.Ok(_mapper.Map<List<PostinganResponseDto>>(posts));
     }
 
-    public async Task<PostinganResponseDto> UpdatePostinganAsync(Guid id, UpdatePostinganDto dto, string userId)
+    public async Task<Result<PostinganResponseDto>> UpdatePostinganAsync(Guid id, UpdatePostinganDto dto, string userId)
     {
         var post = await _postinganRepository.GetByIdWithUserAsync(id);
 
         if (post is null)
-            throw new KeyNotFoundException("Postingan tidak ditemukan.");
+            return Result<PostinganResponseDto>.Fail("Postingan tidak ditemukan.", 404);
 
         if (post.UserId != userId)
-            throw new UnauthorizedAccessException("Anda tidak memiliki akses.");
+            return Result<PostinganResponseDto>.Fail("Anda tidak memiliki akses.", 403);
 
         _mapper.Map(dto, post);
         post.UpdatedAt = DateTime.UtcNow;
 
         await _postinganRepository.SaveChangesAsync();
 
-        return _mapper.Map<PostinganResponseDto>(post);
+        return Result<PostinganResponseDto>.Ok(_mapper.Map<PostinganResponseDto>(post));
     }
 
-    public async Task DeletePostinganAsync(Guid id, string userId)
+    public async Task<Result<MessageResponseDto>> DeletePostinganAsync(Guid id, string userId)
     {
         var post = await _postinganRepository.GetByIdAsync(id);
 
         if (post is null)
-            throw new KeyNotFoundException("Postingan tidak ditemukan.");
+            return Result<MessageResponseDto>.Fail("Postingan tidak ditemukan.", 404);
 
         if (post.UserId != userId)
-            throw new UnauthorizedAccessException("Anda tidak memiliki akses.");
+            return Result<MessageResponseDto>.Fail("Anda tidak memiliki akses.", 403);
 
         _postinganRepository.Remove(post);
         await _postinganRepository.SaveChangesAsync();
+
+        return Result<MessageResponseDto>.Ok(new MessageResponseDto
+        {
+            Message = "Postingan berhasil dihapus."
+        });
     }
 }

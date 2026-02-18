@@ -1,5 +1,6 @@
 ﻿using Data;
 using DTOs.Common;
+using Common;
 using DTOs.Postingan;
 using DTOs.User;
 using Microsoft.AspNetCore.Authorization;
@@ -27,21 +28,24 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> Register(RegisterUserDto dto)
     {
         var result = await _userService.RegisterAsync(dto);
-        return Ok(result);
+        return result.ToActionResult(this);
     }
 
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginUserDto dto)
     {
-        var token = await _userService.LoginAsync(dto);
-        return Ok(new { token });
+        var result = await _userService.LoginAsync(dto);
+        if (!result.IsSuccess)
+            return result.ToActionResult(this);
+
+        return Ok(new { token = result.Data });
     }
 
     [HttpGet("getallUser")]
     public async Task<IActionResult> GetAllUsers()
     {
-        var users = await _userService.GetAllUsersAsync();
-        return Ok(users);
+        var result = await _userService.GetAllUsersAsync();
+        return result.ToActionResult(this);
     }
 
     [Authorize]
@@ -53,15 +57,8 @@ public class UsersController : ControllerBase
         if (string.IsNullOrWhiteSpace(userId))
             return Unauthorized("Token tidak valid.");
 
-        try
-        {
-            var response = await _userService.UpdateUserAsync(userId, dto);
-            return Ok(response);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(ex.Message);
-        }
+        var result = await _userService.UpdateUserAsync(userId, dto);
+        return result.ToActionResult(this);
     }
 
     [Authorize]
@@ -73,15 +70,8 @@ public class UsersController : ControllerBase
         if (string.IsNullOrWhiteSpace(userId))
             return Unauthorized("Token tidak valid.");
 
-        try
-        {
-            await _userService.DeleteUserAsync(userId);
-            return Ok(new MessageResponseDto { Message = "User berhasil dihapus." });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(ex.Message);
-        }
+        var result = await _userService.DeleteUserAsync(userId);
+        return result.ToActionResult(this);
     }
 
     [Authorize]

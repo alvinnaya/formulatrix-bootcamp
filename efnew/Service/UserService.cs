@@ -1,5 +1,7 @@
 ﻿using AutoMapper;
 using DTOs.User;
+using Common;
+using DTOs.Common;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using Models;
@@ -27,40 +29,42 @@ public class UserService : IUserService
         _mapper = mapper;
     }
 
-    public async Task<UserResponseDto> RegisterAsync(RegisterUserDto dto)
+    public async Task<Result<UserResponseDto>> RegisterAsync(RegisterUserDto dto)
     {
         var user = _mapper.Map<Users>(dto);
 
         var result = await _userRepository.CreateAsync(user, dto.Password);
 
         if (!result.Succeeded)
-            throw new Exception(string.Join(", ", result.Errors.Select(e => e.Description)));
+            return Result<UserResponseDto>.Fail(
+                string.Join(", ", result.Errors.Select(e => e.Description)),
+                400);
 
-        return _mapper.Map<UserResponseDto>(user);
+        return Result<UserResponseDto>.Ok(_mapper.Map<UserResponseDto>(user));
     }
 
-    public async Task<string> LoginAsync(LoginUserDto dto)
+    public async Task<Result<string>> LoginAsync(LoginUserDto dto)
     {
         var user = await _userRepository.FindByNameAsync(dto.UserName);
 
         if (user == null || !await _userRepository.CheckPasswordAsync(user, dto.Password))
-            throw new Exception("Invalid credentials");
+            return Result<string>.Fail("Invalid credentials", 401);
 
-        return GenerateJwtToken(user);
+        return Result<string>.Ok(GenerateJwtToken(user));
     }
 
-    public async Task<List<UserResponseDto>> GetAllUsersAsync()
+    public async Task<Result<List<UserResponseDto>>> GetAllUsersAsync()
     {
         var users = await _userRepository.GetAllAsync();
-        return _mapper.Map<List<UserResponseDto>>(users);
+        return Result<List<UserResponseDto>>.Ok(_mapper.Map<List<UserResponseDto>>(users));
     }
 
-    public async Task<UserResponseDto> UpdateUserAsync(string userId, UpdateUserDto dto)
+    public async Task<Result<UserResponseDto>> UpdateUserAsync(string userId, UpdateUserDto dto)
     {
         var user = await _userRepository.FindByIdAsync(userId);
 
         if (user is null)
-            throw new KeyNotFoundException("User tidak ditemukan.");
+            return Result<UserResponseDto>.Fail("User tidak ditemukan.", 404);
 
         _mapper.Map(dto, user);
         user.UpdatedAt = DateTime.UtcNow;
@@ -68,17 +72,19 @@ public class UserService : IUserService
         var result = await _userRepository.UpdateAsync(user);
 
         if (!result.Succeeded)
-            throw new Exception(string.Join(", ", result.Errors.Select(e => e.Description)));
+            return Result<UserResponseDto>.Fail(
+                string.Join(", ", result.Errors.Select(e => e.Description)),
+                400);
 
-        return _mapper.Map<UserResponseDto>(user);
+        return Result<UserResponseDto>.Ok(_mapper.Map<UserResponseDto>(user));
     }
 
-    public async Task DeleteUserAsync(string userId)
+    public async Task<Result<MessageResponseDto>> DeleteUserAsync(string userId)
     {
         var user = await _userRepository.FindByIdAsync(userId);
 
         if (user is null)
-            throw new KeyNotFoundException("User tidak ditemukan.");
+            return Result<MessageResponseDto>.Fail("User tidak ditemukan.", 404);
 
         await using var tx = await _userRepository.BeginTransactionAsync();
 
@@ -97,9 +103,16 @@ public class UserService : IUserService
         var result = await _userRepository.DeleteAsync(user);
 
         if (!result.Succeeded)
-            throw new Exception(string.Join(", ", result.Errors.Select(e => e.Description)));
+            return Result<MessageResponseDto>.Fail(
+                string.Join(", ", result.Errors.Select(e => e.Description)),
+                400);
 
         await tx.CommitAsync();
+
+        return Result<MessageResponseDto>.Ok(new MessageResponseDto
+        {
+            Message = "User berhasil dihapus."
+        });
     }
 
     private string GenerateJwtToken(Users user)

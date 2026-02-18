@@ -1,5 +1,6 @@
 using DTOs.Postingan;
 using DTOs.Common;
+using Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
@@ -27,19 +28,19 @@ public class PostinganController : ControllerBase
         if (string.IsNullOrWhiteSpace(userId))
             return Unauthorized("Token tidak valid.");
 
-        var response = await _postinganService.CreatePostinganAsync(
+        var result = await _postinganService.CreatePostinganAsync(
             dto,
             userId,
             User.Identity?.Name ?? string.Empty);
 
-        return Ok(response);
+        return result.ToActionResult(this);
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAllPostingan()
     {
-        var posts = await _postinganService.GetAllPostinganAsync();
-        return Ok(posts);
+        var result = await _postinganService.GetAllPostinganAsync();
+        return result.ToActionResult(this);
     }
 
     [Authorize]
@@ -51,19 +52,8 @@ public class PostinganController : ControllerBase
         if (string.IsNullOrWhiteSpace(userId))
             return Unauthorized("Token tidak valid.");
 
-        try
-        {
-            var response = await _postinganService.UpdatePostinganAsync(id, dto, userId);
-            return Ok(response);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(ex.Message);
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return Forbid();
-        }
+        var result = await _postinganService.UpdatePostinganAsync(id, dto, userId);
+        return result.ToActionResult(this);
     }
 
     [Authorize]
@@ -75,18 +65,7 @@ public class PostinganController : ControllerBase
         if (string.IsNullOrWhiteSpace(userId))
             return Unauthorized("Token tidak valid.");
 
-        try
-        {
-            await _postinganService.DeletePostinganAsync(id, userId);
-            return Ok(new MessageResponseDto { Message = "Postingan berhasil dihapus." });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(ex.Message);
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return Forbid();
-        }
+        var result = await _postinganService.DeletePostinganAsync(id, userId);
+        return result.ToActionResult(this);
     }
 }

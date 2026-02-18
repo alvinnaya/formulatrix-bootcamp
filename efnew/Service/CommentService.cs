@@ -1,5 +1,7 @@
 ﻿using AutoMapper;
 using DTOs.Comment;
+using Common;
+using DTOs.Common;
 using Models;
 using Repositories.Interfaces;
 using Services.Interfaces;
@@ -17,23 +19,23 @@ public class CommentService : ICommentService
         _mapper = mapper;
     }
 
-    public async Task<List<CommentResponseDto>> GetCommentsByPostinganAsync(Guid postinganId)
+    public async Task<Result<List<CommentResponseDto>>> GetCommentsByPostinganAsync(Guid postinganId)
     {
         var postinganExists = await _commentRepository.PostinganExistsAsync(postinganId);
 
         if (!postinganExists)
-            throw new KeyNotFoundException("Postingan tidak ditemukan.");
+            return Result<List<CommentResponseDto>>.Fail("Postingan tidak ditemukan.", 404);
 
         var comments = await _commentRepository.GetByPostinganAsync(postinganId);
-        return _mapper.Map<List<CommentResponseDto>>(comments);
+        return Result<List<CommentResponseDto>>.Ok(_mapper.Map<List<CommentResponseDto>>(comments));
     }
 
-    public async Task<CommentResponseDto> CreateCommentAsync(Guid postinganId, CreateCommentDto dto, string userId, string userName)
+    public async Task<Result<CommentResponseDto>> CreateCommentAsync(Guid postinganId, CreateCommentDto dto, string userId, string userName)
     {
         var postinganExists = await _commentRepository.PostinganExistsAsync(postinganId);
 
         if (!postinganExists)
-            throw new KeyNotFoundException("Postingan tidak ditemukan.");
+            return Result<CommentResponseDto>.Fail("Postingan tidak ditemukan.", 404);
 
         var comment = _mapper.Map<Comment>(dto);
         comment.PostinganId = postinganId;
@@ -44,20 +46,25 @@ public class CommentService : ICommentService
 
         var response = _mapper.Map<CommentResponseDto>(comment);
         response.UserName = userName;
-        return response;
+        return Result<CommentResponseDto>.Ok(response);
     }
 
-    public async Task DeleteCommentAsync(Guid postinganId, int commentId, string userId)
+    public async Task<Result<MessageResponseDto>> DeleteCommentAsync(Guid postinganId, int commentId, string userId)
     {
         var comment = await _commentRepository.GetByIdAsync(postinganId, commentId);
 
         if (comment is null)
-            throw new KeyNotFoundException("Comment tidak ditemukan.");
+            return Result<MessageResponseDto>.Fail("Comment tidak ditemukan.", 404);
 
         if (comment.UserId != userId)
-            throw new UnauthorizedAccessException("Anda tidak memiliki akses.");
+            return Result<MessageResponseDto>.Fail("Anda tidak memiliki akses.", 403);
 
         _commentRepository.Remove(comment);
         await _commentRepository.SaveChangesAsync();
+
+        return Result<MessageResponseDto>.Ok(new MessageResponseDto
+        {
+            Message = "Comment berhasil dihapus."
+        });
     }
 }

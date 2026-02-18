@@ -1,12 +1,14 @@
+using Common;
+using DTOs.Common;
 using DTOs.User;
 
 namespace Services.Interfaces;
 
 public interface IUserService
 {
-    Task<UserResponseDto> RegisterAsync(RegisterUserDto dto);
-    Task<string> LoginAsync(LoginUserDto dto);
-    Task<List<UserResponseDto>> GetAllUsersAsync();
-    Task<UserResponseDto> UpdateUserAsync(string userId, UpdateUserDto dto);
-    Task DeleteUserAsync(string userId);
+    Task<Result<UserResponseDto>> RegisterAsync(RegisterUserDto dto);
+    Task<Result<string>> LoginAsync(LoginUserDto dto);
+    Task<Result<List<UserResponseDto>>> GetAllUsersAsync();
+    Task<Result<UserResponseDto>> UpdateUserAsync(string userId, UpdateUserDto dto);
+    Task<Result<MessageResponseDto>> DeleteUserAsync(string userId);
 }

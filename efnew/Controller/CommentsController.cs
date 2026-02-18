@@ -1,5 +1,6 @@
 using DTOs.Comment;
 using DTOs.Common;
+using Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
@@ -21,15 +22,8 @@ public class CommentsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetCommentsByPostingan(Guid postinganId)
     {
-        try
-        {
-            var comments = await _commentService.GetCommentsByPostinganAsync(postinganId);
-            return Ok(comments);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(ex.Message);
-        }
+        var result = await _commentService.GetCommentsByPostinganAsync(postinganId);
+        return result.ToActionResult(this);
     }
 
     [Authorize]
@@ -41,20 +35,13 @@ public class CommentsController : ControllerBase
         if (string.IsNullOrWhiteSpace(userId))
             return Unauthorized("Token tidak valid.");
 
-        try
-        {
-            var response = await _commentService.CreateCommentAsync(
-                postinganId,
-                dto,
-                userId,
-                User.Identity?.Name ?? string.Empty);
+        var result = await _commentService.CreateCommentAsync(
+            postinganId,
+            dto,
+            userId,
+            User.Identity?.Name ?? string.Empty);
 
-            return Ok(response);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(ex.Message);
-        }
+        return result.ToActionResult(this);
     }
 
     [Authorize]
@@ -66,18 +53,7 @@ public class CommentsController : ControllerBase
         if (string.IsNullOrWhiteSpace(userId))
             return Unauthorized("Token tidak valid.");
 
-        try
-        {
-            await _commentService.DeleteCommentAsync(postinganId, commentId, userId);
-            return Ok(new MessageResponseDto { Message = "Comment berhasil dihapus." });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(ex.Message);
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return Forbid();
-        }
+        var result = await _commentService.DeleteCommentAsync(postinganId, commentId, userId);
+        return result.ToActionResult(this);
     }
 }
